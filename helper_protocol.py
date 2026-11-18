@@ -93,7 +93,8 @@ class InertController:
         directory = Path(directory)
         if not directory.is_dir() or directory.is_symlink():
             raise Refused('Existing private disposable directory required')
-        if directory.stat().st_mode & 0o077:
+        import os as _os
+        if _os.name != 'nt' and (directory.stat().st_mode & 0o077):
             raise Refused('Disposable directory must be owner-only')
         if not math.isfinite(clock()):
             raise Refused('Finite clock required')

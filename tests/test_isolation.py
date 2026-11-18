@@ -69,6 +69,7 @@ class IsolationTests(unittest.TestCase):
 
 if __name__ == "__main__": unittest.main()
 
+@unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
 class DockerProcessTests(unittest.TestCase):
     def test_output_is_bounded(self):
         import os, tempfile
@@ -87,6 +88,7 @@ class DockerProcessTests(unittest.TestCase):
                 with self.assertRaises(subprocess.TimeoutExpired):
                     runner.docker('version',timeout=1)
 
+@unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
 class DockerBinaryTests(unittest.TestCase):
     def test_raw_stdin_roundtrip(self):
         import os,tempfile

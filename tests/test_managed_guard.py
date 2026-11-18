@@ -18,6 +18,7 @@ class BrokerTests(unittest.TestCase):
         self.broker.calls=64
         with self.assertRaises(PermissionError):self.broker.request({'id':1,'tool':'read_source','arguments':{'path':'input.txt'}})
 
+@unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
 class SupervisorProtocolTests(unittest.TestCase):
     def test_real_subprocess_denial_and_cleanup(self):
         import os,tempfile,json
@@ -44,6 +45,7 @@ class SupervisorProtocolTests(unittest.TestCase):
         self.assertTrue(any(c[:2]==('rm','--force') for c in calls))
         self.assertFalse(any(c[0]=='exec' for c in calls))
 
+@unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
 class SupervisorLimitTests(unittest.TestCase):
     def test_timeout_still_stops_and_removes(self):
         import os,tempfile,json

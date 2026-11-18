@@ -13,7 +13,11 @@ class TransferTests(unittest.TestCase):
         with self.assertRaises(ValueError):wf.validate_files({'config.py':b'API_KEY = "abcdefghijk123456789"'})
     def test_symlinks_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);(root/'x.py').write_text('a');(root/'link.py').symlink_to(root/'x.py')
+            root=Path(tmp);(root/'x.py').write_text('a')
+            try:
+                (root/'link.py').symlink_to(root/'x.py')
+            except OSError as exc:
+                self.skipTest(f'Symlinks unavailable on this host: {exc}')
             with self.assertRaises(ValueError):wf.selected_files(root,['link.py'])
     def test_archive_links_rejected(self):
         b=io.BytesIO()

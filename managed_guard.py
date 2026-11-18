@@ -94,58 +94,79 @@ class Guard:
                 stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
             self.record('started',name=name,scope='owned offline workload only')
             if on_event:on_event(self.events[-1])
-            streams=selectors.DefaultSelector()
-            streams.register(attached.stdout,selectors.EVENT_READ,'stdout')
-            streams.register(attached.stderr,selectors.EVENT_READ,'stderr')
-            buffer=b'';total=0;deadline=time.monotonic()+seconds
+            import queue
+            import threading
+
+            q: queue.Queue[tuple[str, bytes | None]] = queue.Queue()
+
+            def _pump(stream, label: str) -> None:
+                try:
+                    while True:
+                        chunk = stream.read1(4096) if hasattr(stream, "read1") else stream.read(4096)
+                        if not chunk:
+                            break
+                        q.put((label, chunk))
+                except OSError:
+                    pass
+                finally:
+                    q.put((label, None))
+
+            threading.Thread(target=_pump, args=(attached.stdout, 'stdout'), daemon=True).start()
+            threading.Thread(target=_pump, args=(attached.stderr, 'stderr'), daemon=True).start()
+            buffer=b'';total=0;deadline=time.monotonic()+seconds;open_streams=2
             try:
-                while streams.get_map():
+                while open_streams > 0:
                     if time.monotonic()>=deadline:
                         raise TimeoutError('Managed workload time limit reached')
-                    for event,_ in streams.select(.2):
-                        data=os.read(event.fd,4096)
-                        if not data:
-                            streams.unregister(event.fileobj);continue
-                        total+=len(data)
-                        if total>1024*1024:
-                            raise PermissionError('Managed output limit exceeded')
-                        if event.data=='stderr':
-                            continue # Never promote untrusted diagnostics to instructions.
-                        buffer+=data
-                        if len(buffer)>65536:
-                            raise PermissionError('Tool request exceeds 64 KiB')
-                        while b'\n' in buffer:
-                            line,buffer=buffer.split(b'\n',1)
-                            try:
-                                request=json.loads(line)
-                                if defense_council is not None:
-                                    state=json.loads(runner.docker('inspect',name).stdout)[0]['State']
-                                    if state.get('Running') is not True:raise PermissionError('Worker running state unverified')
-                                    self.record('proposal_received',running=True)
-                                response=(model_session.request(request, broker) if model_session is not None else broker.request(request))
-                            except (PermissionError,ValueError,TypeError,KeyError,UnicodeError) as exc:
-                                denied=True
-                                self.record('denied',reason=str(exc)[:180],effect_executed=False)
-                                if on_event:on_event(self.events[-1])
-                                raise PermissionError('Managed tool request denied') from exc
-                            self.record('model_step' if request['tool']=='model_next' else 'allowed',tool=request['tool'],request_id=request['id'])
+                    try:
+                        label, data = q.get(timeout=0.2)
+                    except queue.Empty:
+                        continue
+                    if data is None:
+                        open_streams -= 1
+                        continue
+                    total+=len(data)
+                    if total>1024*1024:
+                        raise PermissionError('Managed output limit exceeded')
+                    if label=='stderr':
+                        continue # Never promote untrusted diagnostics to instructions.
+                    buffer+=data
+                    if len(buffer)>65536:
+                        raise PermissionError('Tool request exceeds 64 KiB')
+                    while b'\n' in buffer:
+                        line,buffer=buffer.split(b'\n',1)
+                        try:
+                            request=json.loads(line)
+                            if defense_council is not None:
+                                state=json.loads(runner.docker('inspect',name).stdout)[0]['State']
+                                if state.get('Running') is not True:raise PermissionError('Worker running state unverified')
+                                self.record('proposal_received',running=True)
+                            response=(model_session.request(request, broker) if model_session is not None else broker.request(request))
+                        except (PermissionError,ValueError,TypeError,KeyError,UnicodeError) as exc:
+                            denied=True
+                            self.record('denied',reason=str(exc)[:180],effect_executed=False)
                             if on_event:on_event(self.events[-1])
-                            encoded=(json.dumps(response,separators=(',',':'))+'\n').encode()
-                            if len(encoded)>65536:
-                                raise PermissionError('Broker response too large')
-                            # A workload that stops reading must not hang the supervisor.
-                            os.set_blocking(attached.stdin.fileno(), False)
-                            pending=memoryview(encoded)
-                            with selectors.DefaultSelector() as writable:
-                                writable.register(attached.stdin,selectors.EVENT_WRITE)
-                                while pending:
-                                    if time.monotonic() >= deadline:
-                                        raise TimeoutError('Broker response deadline reached')
-                                    if writable.select(.1):
-                                        try:
-                                            pending=pending[os.write(attached.stdin.fileno(),pending):]
-                                        except BlockingIOError:
-                                            pass
+                            raise PermissionError('Managed tool request denied') from exc
+                        self.record('model_step' if request['tool']=='model_next' else 'allowed',tool=request['tool'],request_id=request['id'])
+                        if on_event:on_event(self.events[-1])
+                        encoded=(json.dumps(response,separators=(',',':'))+'\n').encode()
+                        if len(encoded)>65536:
+                            raise PermissionError('Broker response too large')
+                        # Bounded write via helper thread so a blocked reader never hangs the supervisor.
+                        write_err: list[Exception] = []
+                        def _write_resp(payload=encoded) -> None:
+                            try:
+                                attached.stdin.write(payload)
+                                attached.stdin.flush()
+                            except Exception as wexc:
+                                write_err.append(wexc)
+                        wt = threading.Thread(target=_write_resp, daemon=True)
+                        wt.start()
+                        wt.join(timeout=max(0.05, deadline - time.monotonic()))
+                        if wt.is_alive():
+                            raise TimeoutError('Broker response deadline reached')
+                        if write_err:
+                            raise write_err[0]
                 if buffer.strip():
                     raise PermissionError('Incomplete tool request')
                 code=attached.wait(timeout=2)
@@ -153,7 +174,7 @@ class Guard:
                     raise RuntimeError('Managed workload exited with an error')
                 self.record('completed')
             finally:
-                streams.close()
+                pass
         except Exception as exc:
             failure=type(exc).__name__+': '+str(exc)[:180]
             self.record('stopping',reason=failure)

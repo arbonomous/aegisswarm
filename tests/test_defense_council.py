@@ -66,6 +66,7 @@ class CouncilTests(unittest.TestCase):
             b.request({'id':1,'tool':'read_source','arguments':{'path':'input.txt'}})
             with self.assertRaises(PermissionError):b.request({'id':2,'tool':'write_artifact','arguments':{'path':'out.txt','text':'later'}})
             self.assertFalse(b.artifacts);self.assertEqual(c.audit()[-1]['requests'],3)
+    @unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
     def test_real_local_protocol_veto_stops_and_cleanup_attempts(self):
         from test_isolation import IMAGE,configuration
         calls=[]

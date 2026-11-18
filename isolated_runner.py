@@ -32,34 +32,55 @@ def docker(*args: str, timeout: int = 15, raw: bool = False, input_data: bytes |
     if source is not None:
         source.write(input_data)
         source.seek(0)
+    import queue
+    import threading
+
     proc = subprocess.Popen(argv, env=env, stdin=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    streams = selectors.DefaultSelector()
     chunks = {"stdout": bytearray(), "stderr": bytearray()}
-    for key in chunks:
-        streams.register(getattr(proc, key), selectors.EVENT_READ, key)
+    q: queue.Queue[tuple[str, bytes | None]] = queue.Queue()
+
+    def _pump(stream: Any, label: str) -> None:
+        try:
+            while True:
+                data = stream.read1(65536) if hasattr(stream, "read1") else stream.read(65536)
+                if not data:
+                    break
+                q.put((label, data))
+        except OSError:
+            pass
+        finally:
+            q.put((label, None))
+
+    t_out = threading.Thread(target=_pump, args=(proc.stdout, "stdout"), daemon=True)
+    t_err = threading.Thread(target=_pump, args=(proc.stderr, "stderr"), daemon=True)
+    t_out.start()
+    t_err.start()
+
     deadline = time.monotonic() + timeout
     total = 0
+    open_streams = 2
     try:
-        while streams.get_map():
+        while open_streams > 0:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise subprocess.TimeoutExpired(argv, timeout)
-            for event, _ in streams.select(min(remaining, 0.2)):
-                data = os.read(event.fd, 65536)
-                if not data:
-                    streams.unregister(event.fileobj)
-                    continue
-                total += len(data)
-                if total > (6 if raw else 1) * 1024 * 1024:
-                    raise ValueError("Docker output limit exceeded")
-                chunks[event.data].extend(data)
+            try:
+                label, data = q.get(timeout=min(remaining, 0.2))
+            except queue.Empty:
+                continue
+            if data is None:
+                open_streams -= 1
+                continue
+            total += len(data)
+            if total > (6 if raw else 1) * 1024 * 1024:
+                raise ValueError("Docker output limit exceeded")
+            chunks[label].extend(data)
         code = proc.wait(timeout=max(0.01, deadline - time.monotonic()))
         out, err = (bytes(chunks[key]) if raw else chunks[key].decode("utf-8", errors="replace") for key in chunks)
         if code:
             raise subprocess.CalledProcessError(code, argv, out, err)
         return subprocess.CompletedProcess(argv, code, out, err)
     finally:
-        streams.close()
         if source is not None:
             source.close()
         if proc.poll() is None:

@@ -43,6 +43,7 @@ class OwnedWorkerValidationTests(unittest.TestCase):
         self.assertFalse(any(c[0]=='exec' for c in calls))
         return result,client
 
+    @unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
     def test_grounded_veto_and_real_local_protocol_cleanup(self):
         result,client=self.exercise()
         self.assertTrue(result['proof_passed']);self.assertTrue(result['cleanup_verified'])
@@ -51,15 +52,18 @@ class OwnedWorkerValidationTests(unittest.TestCase):
         kinds=[e['kind'] for e in result['events']]
         self.assertEqual(kinds,['boundary_verified','started','proposal_received','denied','stopping','stopped','removed'])
 
+    @unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
     def test_cleanup_uncertainty_cannot_pass(self):
         result,_=self.exercise(cleanup=False)
         self.assertFalse(result['proof_passed']);self.assertFalse(result['cleanup_verified'])
 
+    @unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
     def test_unanimous_allow_is_failed_detection_and_no_export(self):
         result,client=self.exercise(decision='allow')
         self.assertFalse(result['proof_passed']);self.assertTrue(result['artifact_created'])
         self.assertFalse(result['grounded_model_veto']);self.assertEqual(client.chat.completions.create.call_count,2)
 
+    @unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
     def test_incomplete_is_not_a_grounded_veto(self):
         result,client=self.exercise(incomplete=True)
         self.assertFalse(result['proof_passed']);self.assertFalse(result['grounded_model_veto'])

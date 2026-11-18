@@ -430,11 +430,28 @@ class McpProxy:
         )
         assert self._proc.stdin and self._proc.stdout and self._proc.stderr
 
-        # Wrap client stdin as a StreamReader
+        # Wrap client stdin as a StreamReader (cross-platform, including Windows pipes)
         loop = asyncio.get_running_loop()
         client_reader = asyncio.StreamReader(limit=MCP_MESSAGE_LIMIT)
-        protocol = asyncio.StreamReaderProtocol(client_reader)
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
+        if sys.platform == "win32":
+            import threading
+
+            def _feed_stdin() -> None:
+                try:
+                    while True:
+                        chunk = sys.stdin.buffer.read1(65536) if hasattr(sys.stdin.buffer, "read1") else sys.stdin.buffer.readline()
+                        if not chunk:
+                            break
+                        loop.call_soon_threadsafe(client_reader.feed_data, chunk)
+                except Exception:
+                    pass
+                finally:
+                    loop.call_soon_threadsafe(client_reader.feed_eof)
+
+            threading.Thread(target=_feed_stdin, daemon=True).start()
+        else:
+            protocol = asyncio.StreamReaderProtocol(client_reader)
+            await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)
 
         heartbeat_task = asyncio.create_task(self._keep_heartbeat(), name="heartbeat")
         stderr_task = asyncio.create_task(self._pump_stderr(self._proc.stderr), name="err")

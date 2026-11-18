@@ -77,7 +77,8 @@ class ExecutionGateTests(unittest.TestCase):
         callback.assert_not_called();text=json.dumps(self.c.audit())
         for value in ('private source','private task','synthetic-model','credits may spill','provider.invalid'):self.assertNotIn(value,text)
         self.assertTrue(all(r['paid_authority'] is False for r in self.c.audit()))
-        self.assertEqual(self.path.stat().st_mode & 0o777,0o600)
+        if __import__('os').name != 'nt':
+            self.assertEqual(self.path.stat().st_mode & 0o777,0o600)
 
     def test_invalid_manifest_and_limits_not_accepted(self):
         for kw in ({'requests':4},{'requests':True},{'completion_tokens':1601},{'context_bytes':32769},{'retries':1},{'command':['mutable']}):

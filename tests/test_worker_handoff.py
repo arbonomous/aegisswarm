@@ -1,4 +1,4 @@
-import base64,json,socket,tempfile,threading,unittest
+import base64,json,os,socket,tempfile,threading,unittest
 from dataclasses import asdict
 from pathlib import Path
 from unittest.mock import Mock,patch
@@ -13,6 +13,7 @@ class WorkerHandoffTests(unittest.TestCase):
         self.m=Manifest.build(self.source,self.task,endpoint='https://invalid.test',model='none',tools=[],image='sha256:synthetic',command=['dry'],warning='billing warning')
     def ready(self):
         ticket=self.c.review(self.m);self.c.decide_dry(ticket,self.m,explicit_start=True);return ticket
+    @unittest.skipIf(os.name=='nt','pass_fds is POSIX-only')
     def test_actual_local_child_private_handoff_and_reservations(self):
         ticket=self.ready()
         import worker_handoff
@@ -27,6 +28,7 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(result['model_requests'],0);self.assertEqual(result['reservations'],3)
         self.assertEqual(self.c.audit()[-1]['state'],'succeeded');self.assertEqual(self.c.audit()[-1]['requests'],3)
         with self.assertRaises(PermissionError):launch_dry(self.c,ticket,self.m,self.source,self.task)
+    @unittest.skipIf(os.name=='nt','pass_fds is POSIX-only')
     def test_fourth_reservation_denied_and_child_cleaned(self):
         with self.assertRaises(PermissionError):launch_dry(self.c,self.ready(),self.m,self.source,self.task,rounds=4)
         self.assertEqual(self.c.audit()[-1]['state'],'unknown');self.assertEqual(self.c.audit()[-1]['requests'],3)
@@ -59,6 +61,7 @@ class WorkerHandoffTests(unittest.TestCase):
             with self.assertRaises((PermissionError,ValueError)):receive(io.BytesIO(data))
         with self.assertRaises(PermissionError):send(io.BytesIO(),{'large':'x'*MAX_FRAME})
 
+    @unittest.skipIf(os.name=='nt','pass_fds is POSIX-only')
     def test_reservation_storage_failure_stops_child_without_retry(self):
         ticket=self.ready()
         with patch.object(self.c,'reserve_dry_request',side_effect=OSError('disk full')) as reserve:

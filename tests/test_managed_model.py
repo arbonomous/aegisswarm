@@ -27,6 +27,7 @@ class ModelBridgeTests(unittest.TestCase):
         with self.assertRaises(PermissionError):session.request({'id':1,'tool':'write_artifact','arguments':{'path':'later.txt','text':'bad'}},broker)
         with self.assertRaises(PermissionError):session.request(request,broker)
         self.assertFalse(broker.artifacts);self.assertEqual(client.chat.completions.create.call_count,1)
+    @unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
     def test_real_shell_relay_never_executes_model_text(self):
         import subprocess
         proc=subprocess.Popen(RELAY,stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True)
@@ -43,6 +44,7 @@ class ModelBridgeTests(unittest.TestCase):
             if proc.poll() is None:proc.kill();proc.wait()
             proc.stdin.close();proc.stdout.close()
 
+@unittest.skipIf(__import__('os').name=='nt','POSIX #!/bin/sh docker shim')
 class ManagedBridgeLifecycleTests(unittest.TestCase):
     def test_real_relay_model_denial_scoped_cleanup(self):
         import os,tempfile
