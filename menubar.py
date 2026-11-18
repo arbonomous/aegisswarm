@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MuseSwarm macOS menu-bar Protector — primary always-on AV UX.
+"""AegisSwarm macOS menu-bar Protector — primary always-on AV UX.
 
 Menu-bar first: native NSPanel is the Protector surface. Streamlit dashboard is
 an optional advanced console. No Muse/Meta API calls. No SIGKILL of user processes.
@@ -130,7 +130,7 @@ def _status_snapshot() -> dict[str, Any]:
     else:
         title = "" if has_icon else "MS"
     tip_bits = [
-        "MuseSwarm",
+        "AegisSwarm",
         "Tool policy ready" if enforce else "Tool policy off",
         "wrapping" if mcp.get("wrapping") else "gate idle",
     ]
@@ -185,24 +185,24 @@ open_protector = open_full_console
 def show_native_section(section: str = "Status", status_item=None) -> None:
     """Present only after the NSMenu tracking action has returned."""
     from PyObjCTools.AppHelper import callLater
-    print("[MuseSwarm] Queued native section: " + section, flush=True)
+    print("[AegisSwarm] Queued native section: " + section, flush=True)
     callLater(0, _present_native_section, section, status_item)
 
 
 def _present_native_section(section: str, status_item=None) -> None:
     """Deferred main-loop presentation, including visible error handling."""
-    print("[MuseSwarm] Opening native section: " + section, flush=True)
+    print("[AegisSwarm] Opening native section: " + section, flush=True)
     try:
         from native_workspace import open_workspace
         open_workspace(section=section, status_item=status_item)
-        print("[MuseSwarm] Native section opened", flush=True)
+        print("[AegisSwarm] Native section opened", flush=True)
     except Exception as exc:
         import traceback
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
         from AppKit import NSAlert
         alert = NSAlert.alloc().init()
-        alert.setMessageText_("MuseSwarm could not open this panel")
+        alert.setMessageText_("AegisSwarm could not open this panel")
         alert.setInformativeText_(type(exc).__name__ + ": " + str(exc)[:400] +
                                  "\nNo workload was launched. Send this message for help.")
         alert.addButtonWithTitle_("OK")
@@ -303,7 +303,7 @@ def _release_instance_lock() -> None:
 
 
 def acquire_single_instance() -> None:
-    """Exit if another MuseSwarm menu-bar process already holds the lock."""
+    """Exit if another AegisSwarm menu-bar process already holds the lock."""
     if PID_FILE.exists():
         try:
             old = int(PID_FILE.read_text(encoding="utf-8").strip())
@@ -312,7 +312,7 @@ def acquire_single_instance() -> None:
         if old and _pid_alive(old) and _pid_looks_like_menubar(old):
             sys.stderr.write(
                 f"[MUSESWARM] Menu bar already running (pid {old}).\n"
-                "  Quit via the MuseSwarm menu → Quit MuseSwarm menu, then relaunch.\n"
+                "  Quit via the AegisSwarm menu → Quit AegisSwarm menu, then relaunch.\n"
                 f"  Stale lock only: rm {PID_FILE}\n"
             )
             raise SystemExit(0)
@@ -465,7 +465,7 @@ def _build_panel_controller(state: _ProtectorPanelState) -> Any:
                 NSBackingStoreBuffered,
                 False,
             )
-            panel.setTitle_("MuseSwarm")
+            panel.setTitle_("AegisSwarm")
             panel.setLevel_(NSFloatingWindowLevel)
             panel.setHidesOnDeactivate_(False)
             panel.setReleasedWhenClosed_(False)
@@ -508,7 +508,7 @@ def _build_panel_controller(state: _ProtectorPanelState) -> Any:
                 except Exception:
                     pass
 
-            title = _make_label("MuseSwarm", bold=True, size=17.0)
+            title = _make_label("AegisSwarm", bold=True, size=17.0)
             title.setFrame_(NSMakeRect(title_x, y - 8, PANEL_W - title_x - 12, 24))
             content.addSubview_(title)
             y -= 36
@@ -754,7 +754,7 @@ def toggle_protector_panel(
     status_item: Any,
     on_refresh: Callable[[], None] | None = None,
 ) -> None:
-    """Show or hide the native MuseSwarm Protector NSPanel under the status item."""
+    """Show or hide the native AegisSwarm Protector NSPanel under the status item."""
     _PANEL.toggle(status_item, on_refresh)
 
 
@@ -790,7 +790,7 @@ def _run_rumps() -> None:
         def __init__(self) -> None:
             icon = _menu_icon_path(template=True) or _menu_icon_path()
             kw: dict[str, Any] = {
-                "name": "MuseSwarm",
+                "name": "AegisSwarm",
                 "title": "",
                 "quit_button": None,
             }
@@ -807,17 +807,17 @@ def _run_rumps() -> None:
             ]
             for item in self._deny_items:
                 item.set_callback(None)
-            header = rumps.MenuItem("MuseSwarm")
+            header = rumps.MenuItem("AegisSwarm")
             header.set_callback(None)
             self.menu = [
                 header,
                 None,
-                rumps.MenuItem("Open MuseSwarm...", callback=self._on_open),
+                rumps.MenuItem("Open AegisSwarm...", callback=self._on_open),
                 rumps.MenuItem("Safety check...", callback=self._on_proofs),
                 rumps.MenuItem("Activity...", callback=self._on_activity),
                 rumps.MenuItem("Workspace...", callback=self._on_workspace),
                 rumps.MenuItem("Guarded task...", callback=self._on_task),
-                rumps.MenuItem("Quit MuseSwarm", callback=self._on_quit),
+                rumps.MenuItem("Quit AegisSwarm", callback=self._on_quit),
             ]
             self._apply_snapshot(_status_snapshot())
 
@@ -851,7 +851,7 @@ def _run_rumps() -> None:
 
         def _on_console(self, _sender: Any) -> None:
             msg = open_full_console()
-            rumps.notification("MuseSwarm", "Full console", msg)
+            rumps.notification("AegisSwarm", "Full console", msg)
 
         def _on_quit(self, _sender: Any) -> None:
             if guarded_task_busy():
@@ -904,7 +904,7 @@ def _run_appkit() -> None:
             try:self.buildShell_(_notification)
             except Exception as error:
                 from AppKit import NSAlert
-                alert=NSAlert.alloc().init();alert.setMessageText_("MuseSwarm could not finish opening")
+                alert=NSAlert.alloc().init();alert.setMessageText_("AegisSwarm could not finish opening")
                 alert.setInformativeText_(type(error).__name__+": "+str(error)[:240]+"\nNo task started. Please share this message.")
                 alert.runModal()
 
@@ -926,9 +926,9 @@ def _run_appkit() -> None:
                 else:
                     button.setTitle_("MS")
 
-            self.menu = NSMenu.alloc().initWithTitle_("MuseSwarm")
+            self.menu = NSMenu.alloc().initWithTitle_("AegisSwarm")
             brand_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "MuseSwarm", None, ""
+                "AegisSwarm", None, ""
             )
             self.menu.addItem_(brand_item)
             self.menu.addItem_(NSMenuItem.separatorItem())
@@ -949,7 +949,7 @@ def _run_appkit() -> None:
 
 
             open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "Open MuseSwarm...", "openProtector:", ""
+                "Open AegisSwarm...", "openProtector:", ""
             )
             open_item.setTarget_(self)
             self.menu.addItem_(open_item)
@@ -979,7 +979,7 @@ def _run_appkit() -> None:
             self.menu.addItem_(task_item)
 
             quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "Quit MuseSwarm", "quitApp:", ""
+                "Quit AegisSwarm", "quitApp:", ""
             )
             quit_item.setTarget_(self)
             self.menu.addItem_(quit_item)
@@ -1091,7 +1091,7 @@ def main() -> None:
     try:
         import rumps  # noqa: F401
 
-        print("MuseSwarm menu bar (rumps) — leave this terminal open.", flush=True)
+        print("AegisSwarm menu bar (rumps) — leave this terminal open.", flush=True)
         print("  Open Protector → native panel (not browser).", flush=True)
         _run_rumps()
         return

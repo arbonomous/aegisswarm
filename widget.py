@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Always-on-top MuseSwarm floating HUD.
+"""Always-on-top AegisSwarm floating HUD.
 
 Drawn on a Canvas so macOS system Tk actually shows colors (Labels often render
 as blank white on deprecated Aqua Tk). Uses a normal always-on-top window so

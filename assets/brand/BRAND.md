@@ -1,9 +1,9 @@
-# MuseSwarm brand
+# AegisSwarm brand
 
 Quiet antivirus for AI agents — trustworthy, sharp, not a gamer/SOC toy.
 
-**Product name:** MuseSwarm
-**Edition tagline:** ZERO — use sparingly (hackathon / submission titles only). Prefer **MuseSwarm** in UI.
+**Product name:** AegisSwarm
+**Edition tagline:** ZERO — use sparingly (hackathon / submission titles only). Prefer **AegisSwarm** in UI.
 
 ## Motif
 
@@ -31,7 +31,7 @@ Streamlit theme mirrors these in `.streamlit/config.toml`. Native popout uses th
 ## Assets (frozen icon)
 
 The icon pixels are frozen and unchanged by the rebrand. Do not regenerate them.
-The MuseSwarm wordmark was composed locally using the existing icon, with no provider call.
+The AegisSwarm wordmark was composed locally using the existing icon, with no provider call.
 
 | File | Role |
 |------|------|
@@ -45,7 +45,7 @@ The MuseSwarm wordmark was composed locally using the existing icon, with no pro
 
 **Do**
 
-- Lead with **MuseSwarm**; say “protector,” “gate,” “activity” — not “War Room.”
+- Lead with **AegisSwarm**; say “protector,” “gate,” “activity” — not “War Room.”
 - Menu bar first; native popout is the everyday UI; Streamlit = advanced console.
 - Keep menu-bar icon high contrast; template mode for macOS tinting.
 - Use `signal` for healthy / enforcing; `danger` for deny / threat; `muted` for idle.
@@ -62,14 +62,14 @@ The MuseSwarm wordmark was composed locally using the existing icon, with no pro
 
 | Surface | Brand application |
 |---------|-------------------|
-| Menu bar (`menubar.py`) | Template/menu icon on `NSStatusItem`; name MuseSwarm |
+| Menu bar (`menubar.py`) | Template/menu icon on `NSStatusItem`; name AegisSwarm |
 | Native Protector panel | Ink panel, signal status, mark + title, denial list |
-| Protector console (`dashboard.py`) | Mark + MuseSwarm title; theme tokens |
+| Protector console (`dashboard.py`) | Mark + AegisSwarm title; theme tokens |
 | Docs / demo video | Current wordmark and unchanged mark |
 
 ## Refresh menu bar icon
 
-Quit via **Quit MuseSwarm menu**, then:
+Quit via **Quit AegisSwarm menu**, then:
 
 ```bash
 ./run_menubar.sh
