@@ -204,12 +204,12 @@ def _build():
             self.headline = label('Protection Paused — Click "Turn On Protection" to start.', 586, 22, x=88, width=320, size=12, color=_MUTED)
             self.home_button = button('Turn On Protection', 'toggleProtectionClicked:', 412, 594, 176, height=36, accent=True)
 
-            # Segmented Tab Bar + Advanced dropdown
-            self.tabs = NSSegmentedControl.alloc().initWithFrame_(NSMakeRect(18, 536, 446, 28))
-            self.tabs.setSegmentCount_(4)
-            for idx, name in enumerate(('Overview', 'Mac Health', 'Activity', 'Test Blocking')):
+            # 3 Simple Consumer Tabs (Home | Health | Activity)
+            self.tabs = NSSegmentedControl.alloc().initWithFrame_(NSMakeRect(18, 536, 584, 28))
+            self.tabs.setSegmentCount_(3)
+            for idx, name in enumerate(('Home', 'Health', 'Activity')):
                 self.tabs.setLabel_forSegment_(name, idx)
-                self.tabs.setWidth_forSegment_(110, idx)
+                self.tabs.setWidth_forSegment_(192, idx)
             self.tabs.setSelectedSegment_(0)
             self.tabs.setTarget_(self);self.tabs.setAction_('tabChanged:')
             content.addSubview_(self.tabs)
@@ -218,7 +218,7 @@ def _build():
             self.sections.addItemsWithTitles_(['Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'Attack catalog', 'Policy checks', 'Activity and evidence', 'Latest analysis', 'AI task', 'Protected task', 'Workspace', 'About'])
             self.sections.setTarget_(self);self.sections.setAction_('sectionChanged:');content.addSubview_(self.sections)
 
-            # 3 Mac Health Metric Cards (Overview + Mac Health)
+            # 3 Mac Health Metric Cards (Health tab)
             before_metrics = len(content.subviews())
             card(18, 444, 186, 78, radius=10.0)
             label('PROCESSOR (CPU)', 496, 16, x=32, width=160, size=10, bold=True, color=_MUTED)
@@ -231,11 +231,10 @@ def _build():
             self.disk_val = label('--%', 462, 30, x=430, width=160, size=22, bold=True, color=_EMERALD)
             self.metric_cards = list(content.subviews())[before_metrics:]
 
-            # Friendly Quick Action Row
+            # 2 Simple Action Buttons
             before_friendly = len(content.subviews())
-            self.clean_button = button('Clean Up Mac', 'cleanMacClicked:', 18, 400, 186, height=32, accent=True)
-            self.test_block_button = button('Test Threat Blocking', 'guardClicked:', 217, 400, 186, height=32)
-            self.web_button = button('Open Web Dashboard', 'webConsoleClicked:', 416, 400, 186, height=32)
+            self.clean_button = button('Clean Up Mac', 'cleanMacClicked:', 18, 488, 284, height=34, accent=True)
+            self.test_block_button = button('Check for Threats', 'guardClicked:', 318, 488, 284, height=34)
             self.friendly_views = list(content.subviews())[before_friendly:]
 
             # Legacy / Advanced top views (hidden in friendly modes)
@@ -305,7 +304,7 @@ def _build():
         def tabChanged_(self, _sender):
             if self.busy:
                 return
-            mapping = ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking')
+            mapping = ('Overview', 'Mac Health & Cleanup', 'Activity')
             idx = int(self.tabs.selectedSegment())
             if 0 <= idx < len(mapping):
                 self.sections.selectItemWithTitle_(mapping[idx])
@@ -319,7 +318,7 @@ def _build():
             self.protected_plan = None
             self.mode = str(self.sections.titleOfSelectedItem())
             friendly = self.mode in ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking')
-            show_metrics = self.mode in ('Overview', 'Mac Health & Cleanup')
+            show_metrics = self.mode == 'Mac Health & Cleanup'
             compact = self.mode in ('Status', 'Safety check', 'AI task')
             self.panel.setContentSize_((620, 480 if self.mode == 'AI task' else (440 if compact else 660)))
             for view, frame in self.base_frames:
@@ -339,12 +338,23 @@ def _build():
             for view in self.top_views:
                 view.setHidden_(not details)
             _friendly_views = getattr(self, 'friendly_views', ())
-            for view in (_friendly_views if isinstance(_friendly_views, (list, tuple)) else ()):
-                view.setHidden_(not friendly)
+            if isinstance(_friendly_views, (list, tuple)):
+                for view in _friendly_views:
+                    view.setHidden_(not friendly)
             _metric_cards = getattr(self, 'metric_cards', ())
-            for view in (_metric_cards if isinstance(_metric_cards, (list, tuple)) else ()):
-                view.setHidden_(not show_metrics)
-            self.scroll.setFrame_(NSMakeRect(18, 50, 584, 120 if workspace else (240 if self.mode == 'AI task' else (336 if (friendly and show_metrics) else (466 if friendly else (350 if details else 250))))))
+            if isinstance(_metric_cards, (list, tuple)):
+                for view in _metric_cards:
+                    view.setHidden_(not show_metrics)
+            if hasattr(self, 'clean_button') and hasattr(self, 'test_block_button') and friendly:
+                btn_y = 400 if show_metrics else 488
+                self.clean_button.setFrameOrigin_((18, btn_y))
+                self.test_block_button.setFrameOrigin_((318, btn_y))
+            if hasattr(self, 'sections') and hasattr(self, 'tabs'):
+                self.sections.setHidden_(friendly)
+                self.tabs.setHidden_(not friendly)
+            if hasattr(self, 'copy_button'):
+                self.copy_button.setHidden_(friendly)
+            self.scroll.setFrame_(NSMakeRect(18, 50, 584, 120 if workspace else (240 if self.mode == 'AI task' else (336 if (friendly and show_metrics) else (424 if friendly else (350 if details else 250))))))
             if protected:
                 from native_task_flow import NATIVE_LIVE_RELEASED,limits_text
                 self.panel.setContentSize_((620,660))
@@ -365,8 +375,8 @@ def _build():
                 self.results.setString_('1. Choose non-secret source files.\n2. Write a goal and click Review protected task.\n3. Check the exact copies in this area.\n\nLive Start is disabled. No AI request or worker can start from Review.' if not NATIVE_LIVE_RELEASED else 'Choose source files, write a goal, then review the exact copies before Start.')
                 return
             self.home_button.setHidden_(False)
-            self.details_button.setHidden_(self.mode not in ('Test Blocking', 'Safety check', 'AI task'))
-            tab_map = {'Overview': 0, 'Mac Health & Cleanup': 1, 'Activity': 2, 'Test Blocking': 3}
+            self.details_button.setHidden_(self.mode not in ('Safety check', 'AI task'))
+            tab_map = {'Overview': 0, 'Mac Health & Cleanup': 1, 'Activity': 2}
             if self.mode in tab_map and hasattr(self, 'tabs'):
                 self.tabs.setSelectedSegment_(tab_map[self.mode])
             try:
