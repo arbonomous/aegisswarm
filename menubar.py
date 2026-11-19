@@ -1006,7 +1006,7 @@ def _run_appkit() -> None:
 
 
             self.guardian_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "Stop Live Guardian" if guardian_running() else "Start Live Guardian",
+                "Pause Protection" if guardian_running() else "Turn On Protection",
                 "toggleGuardian:",
                 "",
             )
@@ -1014,7 +1014,7 @@ def _run_appkit() -> None:
             self.menu.addItem_(self.guardian_item)
 
             health_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "System Health & Clean...", "runHealthClean:", ""
+                "Mac Health & Clean Up...", "runHealthClean:", ""
             )
             health_item.setTarget_(self)
             self.menu.addItem_(health_item)
@@ -1026,29 +1026,11 @@ def _run_appkit() -> None:
             open_item.setTarget_(self)
             self.menu.addItem_(open_item)
 
-            proof_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "Safety check...", "runProofs:", ""
-            )
-            proof_item.setTarget_(self)
-            self.menu.addItem_(proof_item)
-
             activity_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                 "Activity...", "openActivity:", ""
             )
             activity_item.setTarget_(self)
             self.menu.addItem_(activity_item)
-
-            workspace_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "Workspace...", "openWorkspace:", ""
-            )
-            workspace_item.setTarget_(self)
-            self.menu.addItem_(workspace_item)
-
-            task_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "Guarded task...", "openGuardedTask:", ""
-            )
-            task_item.setTarget_(self)
-            self.menu.addItem_(task_item)
 
             quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                 "Quit AegisSwarm", "quitApp:", ""

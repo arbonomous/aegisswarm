@@ -715,7 +715,7 @@ def _build():
                 return
             if self.mode == 'AI task':
                 self.modelClicked_(None);return
-            self.sections.selectItemWithTitle_('Test Blocking')
+            self.sections.selectItemWithTitle_('Overview')
             self.sectionChanged_(None)
             def operation():
                 import subprocess, sys
@@ -730,20 +730,18 @@ def _build():
                     timeout=20,
                 )
                 if proc.returncode != 0:
-                    raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or 'Live threat test failed.')
+                    raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or 'Threat check failed.')
                 proof_data = json.loads(proc.stdout)
                 snap = collect_health_snapshot()
                 advisories = analyze_optimizations(snap)
                 elapsed = proof_data.get('elapsed_seconds')
                 text = [
-                    'Test Passed — Your Mac is Protected!',
+                    'Threat Check Passed — Your Mac is Protected!',
                     '',
-                    f'We ran a harmless fake intruder on your Mac.',
+                    'We ran a harmless fake intruder on your Mac.',
                     f'AegisSwarm spotted it, froze it in place, verified it was dangerous, and stopped it in {elapsed} seconds — before it could touch any files.',
                     '',
                     f'Mac Health right now: CPU {snap.cpu_percent:.0f}% | RAM {snap.memory_percent:.0f}% | Disk {snap.disk_percent:.0f}% ({len(advisories)} cleanup tip(s))',
-                    '',
-                    'Click "Show details" above if you want to see the technical report.',
                     '',
                     'Evidence:',
                     json.dumps(proof_data, indent=2),

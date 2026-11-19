@@ -58,7 +58,7 @@ class NotesTests(unittest.TestCase):
         self.assertIn('TASK BLOCKED',result_text(dict(stopped=True,removed=True,export_permitted=False,denied=True,defense_reviews=[dict(failure_category='grounded_deny')])))
     def test_menu_has_both_routes_and_busy_quit_guard(self):
         text=Path('menubar.py').read_text()
-        self.assertIn('callback=self._on_task',text);self.assertIn('"openGuardedTask:"',text)
+        self.assertIn('def _on_task',text);self.assertIn('def openGuardedTask_',text)
         self.assertGreaterEqual(text.count('if guarded_task_busy():'),3)
         self.assertIn('applicationShouldHandleReopen_hasVisibleWindows_',text)
 
