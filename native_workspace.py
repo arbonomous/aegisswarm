@@ -201,7 +201,7 @@ def _build():
             brand.setImage_(mark);brand.setImageScaling_(0);content.addSubview_(brand)
             title = label('AegisSwarm', 614, 24, x=88, width=300, size=18, bold=True, color=_TEXT)
             self.title_label = title
-            self.headline = label('Protection Paused — Click "Turn On Protection" to start.', 586, 22, x=88, width=320, size=12, color=_MUTED)
+            self.headline = label('Protection Paused \u2014 Click "Turn On Protection" to start.', 586, 22, x=88, width=320, size=12, color=_MUTED)
             self.home_button = button('Turn On Protection', 'toggleProtectionClicked:', 412, 594, 176, height=36, accent=True)
 
             # 3 Simple Consumer Tabs (Home | Health | Activity)
@@ -391,9 +391,9 @@ def _build():
                 if friendly:
                     from AppKit import NSColor
                     self.headline.setStringValue_(
-                        '● Live Protection Active — Watching your Mac in real time'
+                        '\u25cf Live Protection Active \u2014 Watching your Mac in real time'
                         if prot_on else
-                        '○ Protection Paused — Click "Turn On Protection" to start'
+                        '\u25cb Protection Paused \u2014 Click "Turn On Protection" to start'
                     )
                     self.headline.setTextColor_(
                         NSColor.colorWithRed_green_blue_alpha_(61 / 255.0, 214 / 255.0, 140 / 255.0, 1.0)
@@ -649,9 +649,9 @@ def _build():
                 self.home_button.setTitle_('Pause Protection' if running else 'Turn On Protection')
                 from AppKit import NSColor
                 self.headline.setStringValue_(
-                    '● Live Protection Active — Watching your Mac in real time'
+                    '\u25cf Live Protection Active \u2014 Watching your Mac in real time'
                     if running else
-                    '○ Protection Paused — Click "Turn On Protection" to start'
+                    '\u25cb Protection Paused \u2014 Click "Turn On Protection" to start'
                 )
                 self.headline.setTextColor_(
                     NSColor.colorWithRed_green_blue_alpha_(61 / 255.0, 214 / 255.0, 140 / 255.0, 1.0)
@@ -688,16 +688,16 @@ def _build():
                 lines = [
                     'Mac Cleanup Complete!' if archived else 'Mac Already Clean!',
                     '',
-                    (f'• Safely archived {archived} stale temp file(s) ({reclaimed_mb} MB freed).'
+                    (f'\u2022 Safely archived {archived} stale temp file(s) ({reclaimed_mb} MB freed).'
                      if archived else
-                     '• No stale temporary files needed cleanup right now.'),
-                    f'• Undo folder: {default_cleanup_archive_dir()}',
+                     '\u2022 No stale temporary files needed cleanup right now.'),
+                    f'\u2022 Undo folder: {default_cleanup_archive_dir()}',
                     '',
                     'Current Mac Health:',
-                    f'• Processor (CPU): {snap.cpu_percent:.0f}% used',
-                    f'• Memory (RAM): {snap.memory_percent:.0f}% used ({snap.memory_available_mb:.0f} MB free)',
-                    f'• Storage (Disk): {snap.disk_percent:.0f}% full ({snap.disk_free_gb:.1f} GB free)',
-                    f'• Remaining tips: {len(advisories)}',
+                    f'\u2022 Processor (CPU): {snap.cpu_percent:.0f}% used',
+                    f'\u2022 Memory (RAM): {snap.memory_percent:.0f}% used ({snap.memory_available_mb:.0f} MB free)',
+                    f'\u2022 Storage (Disk): {snap.disk_percent:.0f}% full ({snap.disk_free_gb:.1f} GB free)',
+                    f'\u2022 Remaining tips: {len(advisories)}',
                 ]
                 return '\n'.join(lines), None
             self.startWorker_(operation, kind='check')
@@ -736,10 +736,10 @@ def _build():
                 advisories = analyze_optimizations(snap)
                 elapsed = proof_data.get('elapsed_seconds')
                 text = [
-                    'Threat Check Passed — Your Mac is Protected!',
+                    'Threat Check Passed \u2014 Your Mac is Protected!',
                     '',
                     'We ran a harmless fake intruder on your Mac.',
-                    f'AegisSwarm spotted it, froze it in place, verified it was dangerous, and stopped it in {elapsed} seconds — before it could touch any files.',
+                    f'AegisSwarm spotted it, froze it in place, verified it was dangerous, and stopped it in {elapsed} seconds \u2014 before it could touch any files.',
                     '',
                     f'Mac Health right now: CPU {snap.cpu_percent:.0f}% | RAM {snap.memory_percent:.0f}% | Disk {snap.disk_percent:.0f}% ({len(advisories)} cleanup tip(s))',
                     '',
