@@ -21,8 +21,8 @@ def section_text(section: str) -> str:
             snap = collect_health_snapshot()
             advisories = analyze_optimizations(snap)
             health_line = (
-                f"CPU {snap['cpu_percent']}% | RAM {snap['memory_percent']}% | "
-                f"Disk {snap['disk_percent']}% | Advisories: {len(advisories)}"
+                f"CPU {snap.cpu_percent:.1f}% | RAM {snap.memory_percent:.1f}% | "
+                f"Disk {snap.disk_percent:.1f}% | Advisories: {len(advisories)}"
             )
         except Exception:
             pass

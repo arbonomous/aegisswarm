@@ -528,7 +528,7 @@ def _build():
                     f"Target PID: {proof_data.get('target_pid')} | Verdict: {proof_data.get('verdict')} ({proof_data.get('agent')}, score {proof_data.get('threat_score')})",
                     f"Action: {proof_data.get('action_detail')}",
                     '',
-                    f"System Health: CPU {snap['cpu_percent']}% | RAM {snap['memory_percent']}% | Disk {snap['disk_percent']}% | Advisories: {len(advisories)}",
+                    f"System Health: CPU {snap.cpu_percent:.1f}% | RAM {snap.memory_percent:.1f}% | Disk {snap.disk_percent:.1f}% | Advisories: {len(advisories)}",
                     '',
                     'Evidence:',
                     json.dumps(proof_data, indent=2),
