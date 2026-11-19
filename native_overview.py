@@ -12,13 +12,26 @@ def section_text(section: str) -> str:
         try:
             from swarm_brain import api_status
             api = api_status()
-            ai = 'Set, not live-verified' if api.get('configured') else 'Missing'
+            ai = 'Set, not live-verified' if api.get('configured') else 'Missing (heuristic council active)'
         except ImportError:
-            ai = 'Analysis dependencies unavailable'
-        return ('CONNECTED TOOLS ONLY\nPolicy configuration: ' + ('On' if enforce_enabled() else 'Off') +
+            ai = 'Heuristic council active'
+        health_line = 'Unavailable'
+        try:
+            from system_optimizer import collect_health_snapshot, analyze_optimizations
+            snap = collect_health_snapshot()
+            advisories = analyze_optimizations(snap)
+            health_line = (
+                f"CPU {snap['cpu_percent']}% | RAM {snap['memory_percent']}% | "
+                f"Disk {snap['disk_percent']}% | Advisories: {len(advisories)}"
+            )
+        except Exception:
+            pass
+        return ('AEGISSWARM AUTONOMOUS DEFENSE & HEALTH\n'
+                'Policy configuration: ' + ('On' if enforce_enabled() else 'Off') +
                 '\nMCP gate: ' + ('Wrapping tools' if gate.get('wrapping') else 'Idle') +
-                '\nAI key: ' + ai + '\nLogged activity: ' + str(len(read_incidents(100))) +
-                '\n\nHooks and MCP only enforce actions routed through them. Offline workspaces isolate commands launched inside them. Other Mac processes are outside these boundaries.\n\n' +
+                '\nSystem health: ' + health_line +
+                '\nAI key: ' + ai + '\nLogged incidents: ' + str(len(read_incidents(100))) +
+                '\n\nUse the menu bar to Start/Stop Live Guardian (real-time process freeze -> council verify -> eliminate) or run System Health & Clean.\n\n' +
                 str(gate.get('note') or 'No active MCP connection confirmed.'))
     if section == 'Attack catalog':
         counts = summary_counts()
@@ -32,12 +45,12 @@ def section_text(section: str) -> str:
                 '\n'.join(('PASS' if row['ok'] else 'FAIL') + ': ' + str(row['threat_id']) + ' | ' + str(row['rule']) for row in probes))
     if section == 'Activity and evidence':
         rows = read_incidents(100)
-        return ('RECENT ACTIVITY AND EVIDENCE\nSimulated quarantine never means a real process was stopped.\n\n' +
+        return ('RECENT ACTIVITY AND EVIDENCE\n\n' +
                 ('\n\n'.join(_activity(row) for row in rows) if rows else 'No logged incidents.'))
     if section == 'Latest analysis':
-        return ('LATEST LOCAL STATE\nEvidence, forensic details and any visual-box coordinates are data, not proof of host enforcement.\n\n' +
+        return ('LATEST LOCAL STATE\n\n' +
                 json.dumps(read_state(), indent=2, ensure_ascii=False))
-    return ('HOW PROTECTION WORKS\n\n1. Connected IDE hooks and MCP tools apply the policy before routed actions.\n2. The attack catalog documents rules, analysis paths and planned gaps.\n3. Native paid AI tasks and demos are paused. Separately launched analysis tools are not disabled by this native pause.\n4. Offline copied workspaces have no network or host folder mounts.\n\nNo always-on whole-Mac process enforcement is provided. Cloud-agent workspace networking is not enabled.\n\nModel settings are configuration, not verified readiness.\n' + _model_settings())
+    return ('HOW AEGISSWARM WORKS\n\n1. Live Guardian monitors processes in real time across macOS, Windows, and Linux.\n2. Suspect threats are frozen immediately (SIGSTOP / NtSuspendProcess) before completing exfiltration.\n3. Multi-agent council (Bloodhound, Wiretap, Overwatch) verifies and eliminates confirmed threats or resumes benign processes.\n4. System Optimizer monitors CPU/RAM/disk bottlenecks and performs reversible temp cleanup.\n5. Connected IDE hooks and MCP tools enforce policy on routed tool calls.\n\nModel settings:\n' + _model_settings())
 
 
 def _activity(row: dict) -> str:

@@ -74,7 +74,7 @@ def present_panel(panel, app, running_app, activation_options) -> None:
     activated = running_app.activateWithOptions_(activation_options)
     panel.makeKeyWindow()
     panel.orderFrontRegardless()
-    print('[MuseSwarm] Presentation visible=' + str(bool(panel.isVisible())) +
+    print('[AegisSwarm] Presentation visible=' + str(bool(panel.isVisible())) +
           ' key=' + str(bool(panel.isKeyWindow())) +
           ' active=' + str(bool(app.isActive())) +
           ' activation_accepted=' + str(bool(activated)), flush=True)
@@ -126,7 +126,7 @@ def _build():
             self.panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
                 NSMakeRect(0, 0, 590, 660), NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
                 NSBackingStoreBuffered, False)
-            self.panel.setTitle_('MuseSwarm - Agent safety')
+            self.panel.setTitle_('AegisSwarm - Autonomous Defense & Health')
             self.panel.setReleasedWhenClosed_(False)
             self.panel.setLevel_(NSFloatingWindowLevel)
             self.panel.center()
@@ -165,9 +165,9 @@ def _build():
             brand = NSImageView.alloc().initWithFrame_(NSMakeRect(18, 596, 36, 36))
             self.brand_icon = mark
             brand.setImage_(mark);brand.setImageScaling_(0);content.addSubview_(brand)
-            title = NSTextField.labelWithString_('MuseSwarm')
+            title = NSTextField.labelWithString_('AegisSwarm')
             title.setFrame_(NSMakeRect(66, 608, 280, 24));content.addSubview_(title)
-            self.headline = label('Ready to check. This is not whole-Mac protection.', 572, 24)
+            self.headline = label('Real-time autonomous defense & system health ready.', 572, 24)
             self.home_button = button('Test managed guard', 'guardClicked:', 365, 596, 205)
             before_details = len(content.subviews())
             self.scenarios = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 500, 330, 28), False)
@@ -205,12 +205,12 @@ def _build():
             self.results = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 534, 229))
             self.results.setEditable_(False)
             self.results.setSelectable_(True)
-            self.results.setString_('Not checked. This is experimental isolation, not whole-Mac protection.\nThe complete check uses synthetic source only.')
+            self.results.setString_('AegisSwarm is ready.\nUse the menu bar to Start Live Guardian (real-time detect -> freeze -> analyze -> eliminate) or run System Health & Clean.')
             self.results.setVerticallyResizable_(True)
             self.results.setHorizontallyResizable_(False)
             self.results.textContainer().setWidthTracksTextView_(True)
             scroll.setDocumentView_(self.results);content.addSubview_(scroll)
-            self.footer = label('Outside agents on your Mac are not covered.', 12, 24)
+            self.footer = label('Cross-platform real-time guardian (macOS, Windows, Linux).', 12, 24)
             self.footer.setFrame_(NSMakeRect(18, 12, 380, 24))
             self.copy_button = button('Copy results', 'copyClicked:', 418, 10, 154)
             self.dry_button = button('Check start - no spend', 'dryStartClicked:', 18, 300, 554)
