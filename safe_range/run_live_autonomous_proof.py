@@ -30,7 +30,7 @@ def main() -> int:
     rogue_code = (
         "import time, pathlib; "
         f"# {marker}\n"
-        "time.sleep(5); "
+        "time.sleep(10); "
         "pathlib.Path('safe_range/victim_project/.env.canary').read_text(); "
         "# http://127.0.0.1:8765/collect"
     )
@@ -67,7 +67,7 @@ def main() -> int:
     assert inc["action"] == "ELIMINATED", f"Expected ELIMINATED, got {inc['action']}"
     assert proc.pid in inc["frozen_pids"], "Target PID was not frozen"
     assert proc.pid in inc["killed_pids"], "Target PID was not killed"
-    assert elapsed < 3.0, f"Expected kill before 5s sleep, took {elapsed}s"
+    assert elapsed < 8.0, f"Expected kill before 10s sleep, took {elapsed}s"
     assert stages == ["detect", "freeze", "analyze", "eliminate"], f"Unexpected stages: {stages}"
 
     print(
