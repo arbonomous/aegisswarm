@@ -597,6 +597,63 @@ Safe mode never force-quits real apps on your Mac. Muse-on-ambiguous is off by d
         )
 
 
+def render_guardian_and_health() -> None:
+    from guardian import GuardianConfig, GuardianDaemon
+    from os_adapter import platform_info
+    from system_optimizer import (
+        analyze_optimizations,
+        apply_safe_cleanup,
+        collect_health_snapshot,
+    )
+
+    pinfo = platform_info()
+    snap = collect_health_snapshot()
+    advisories = analyze_optimizations(snap)
+
+    st.subheader("Real-Time Guardian & System Health", anchor=False)
+    st.caption(
+        f"OS: `{pinfo['os']}` ({pinfo['machine']}) · "
+        f"Freeze: `{pinfo['freeze_method']}` · Kill: `{pinfo['kill_method']}`"
+    )
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("CPU", f"{snap.cpu_percent:.1f}%")
+    m2.metric("Memory", f"{snap.memory_percent:.1f}%")
+    m3.metric("Disk", f"{snap.disk_percent:.1f}%")
+    m4.metric("Processes", snap.process_count)
+
+    b1, b2, b3 = st.columns(3)
+    if b1.button("Run Safe Sweep", use_container_width=True):
+        found = GuardianDaemon(GuardianConfig(dry_run=True)).scan_once()
+        if found:
+            st.warning(f"Dry-run flagged {len(found)} suspect process(es).")
+        else:
+            st.success("Sweep clean — no active threats detected.")
+    if b2.button("Run Live Kill-Chain Proof", use_container_width=True):
+        py = sys.executable
+        proc = subprocess.run(
+            [py, str(ROOT / "safe_range" / "run_live_autonomous_proof.py")],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if proc.returncode == 0:
+            st.success("Live kill-chain proof passed (detect -> freeze -> analyze -> eliminate).")
+            st.code(proc.stdout.strip(), language="json")
+        else:
+            st.error(proc.stderr or proc.stdout or "Proof failed")
+    if b3.button("Optimize & Clean (Reversible)", use_container_width=True):
+        res = apply_safe_cleanup(advisories, dry_run=False)
+        st.info(f"Archived {len(res)} stale temp artifact(s) to ~/.aegisswarm/cleanup_archive/.")
+
+    if advisories:
+        with st.expander(f"Optimization advisories ({len(advisories)})", expanded=False):
+            for adv in advisories[:10]:
+                st.markdown(f"- **{adv.kind}**: {adv.summary} — *{adv.recommendation}*")
+
+
 def main() -> None:
     ensure_poison_images()
     ensure_sounds()
@@ -611,6 +668,8 @@ def main() -> None:
     history = read_incidents(100)
 
     render_hero(api_ok, gate_on, len(history), mcp_status)
+    st.divider()
+    render_guardian_and_health()
     st.divider()
     render_coverage()
     st.divider()

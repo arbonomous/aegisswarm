@@ -49,7 +49,7 @@ class NotesTests(unittest.TestCase):
             import shutil
             shutil.copytree(Path('vendor'),src/'vendor')
             home=root/'home';home.mkdir();app=build(src,home,check=False)
-            self.assertFalse((app/'Contents/Resources/app/.env').exists());self.assertFalse((app/'Contents/Resources/app/link.py').exists());self.assertFalse(plistlib.loads((app/'Contents/Info.plist').read_bytes())['LSUIElement']);self.assertEqual((app/'Contents/MacOS/MuseSwarm').read_bytes()[:4],bytes.fromhex('cafebabe'))
+            self.assertFalse((app/'Contents/Resources/app/.env').exists());self.assertFalse((app/'Contents/Resources/app/link.py').exists());self.assertFalse(plistlib.loads((app/'Contents/Info.plist').read_bytes())['LSUIElement']);self.assertEqual((app/'Contents/MacOS/AegisSwarm').read_bytes()[:4],bytes.fromhex('cafebabe'))
             with self.assertRaises(FileExistsError):build(src,home,check=False)
 
     def test_clean_failure_and_cleanup_failure_are_plain_distinct_states(self):

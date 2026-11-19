@@ -218,6 +218,63 @@ def guarded_task_busy():
     return is_busy()
 
 
+_GUARDIAN_PROC: subprocess.Popen | None = None
+
+
+def guardian_running() -> bool:
+    global _GUARDIAN_PROC
+    return _GUARDIAN_PROC is not None and _GUARDIAN_PROC.poll() is None
+
+
+def stop_live_guardian() -> str:
+    global _GUARDIAN_PROC
+    if not guardian_running():
+        _GUARDIAN_PROC = None
+        return "Live Guardian already stopped."
+    assert _GUARDIAN_PROC is not None
+    _GUARDIAN_PROC.terminate()
+    try:
+        _GUARDIAN_PROC.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        _GUARDIAN_PROC.kill()
+        _GUARDIAN_PROC.wait(timeout=2)
+    _GUARDIAN_PROC = None
+    return "Live Guardian stopped."
+
+
+def toggle_live_guardian() -> str:
+    global _GUARDIAN_PROC
+    if guardian_running():
+        return stop_live_guardian()
+    py = ROOT / ".venv" / "bin" / "python"
+    python = str(py) if py.exists() else sys.executable
+    _GUARDIAN_PROC = subprocess.Popen(
+        [python, str(ROOT / "aegisswarm.py"), "patrol", "--live"],
+        cwd=str(ROOT),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return f"Live Guardian armed (PID {_GUARDIAN_PROC.pid})."
+
+
+def run_health_optimize(apply_cleanup: bool = False) -> str:
+    from system_optimizer import (
+        analyze_optimizations,
+        apply_safe_cleanup,
+        collect_health_snapshot,
+    )
+
+    snap = collect_health_snapshot()
+    advisories = analyze_optimizations(snap)
+    results = apply_safe_cleanup(advisories, dry_run=not apply_cleanup)
+    cleaned = len([r for r in results if r.get("action") == "REVERSIBLE_CLEANUP"])
+    return (
+        f"CPU {snap.cpu_percent:.0f}% · RAM {snap.memory_percent:.0f}% · "
+        f"Disk {snap.disk_percent:.0f}% · {len(advisories)} advisories"
+        + (f" · archived {cleaned} stale files" if apply_cleanup else "")
+    )
+
+
 def open_offline_workspace(status_item=None) -> str:
     """Native menu-owned workspace. Never starts or opens a browser."""
     show_native_section("Workspace", status_item)
@@ -948,6 +1005,21 @@ def _run_appkit() -> None:
                 self.deny_items.append(item)
 
 
+            self.guardian_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "Stop Live Guardian" if guardian_running() else "Start Live Guardian",
+                "toggleGuardian:",
+                "",
+            )
+            self.guardian_item.setTarget_(self)
+            self.menu.addItem_(self.guardian_item)
+
+            health_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "System Health & Clean...", "runHealthClean:", ""
+            )
+            health_item.setTarget_(self)
+            self.menu.addItem_(health_item)
+            self.menu.addItem_(NSMenuItem.separatorItem())
+
             open_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
                 "Open AegisSwarm...", "openProtector:", ""
             )
@@ -1010,6 +1082,7 @@ def _run_appkit() -> None:
             from native_workspace import is_busy
             if guarded_task_busy():open_guarded_task();return 0
             if is_busy():open_offline_workspace(self.status_item);return 0
+            stop_live_guardian()
             _release_instance_lock();return 1
 
         def tick_(self, _timer) -> None:
@@ -1027,7 +1100,28 @@ def _run_appkit() -> None:
             )
             self.gate_item.setTitle_(_gate_label(snap["mcp"]))
             self.deny_items[0].setTitle_(_activity_summary(snap["denials"]))
+            if hasattr(self, "guardian_item"):
+                self.guardian_item.setTitle_(
+                    "Stop Live Guardian" if guardian_running() else "Start Live Guardian"
+                )
             refresh_protector_panel_if_visible()
+
+        def toggleGuardian_(self, _sender) -> None:
+            msg = toggle_live_guardian()
+            self.applySnapshot_(_status_snapshot())
+            try:
+                from os_adapter import notify
+                notify("AegisSwarm Live Guardian", msg, level="normal")
+            except Exception:
+                pass
+
+        def runHealthClean_(self, _sender) -> None:
+            msg = run_health_optimize(apply_cleanup=True)
+            try:
+                from os_adapter import notify
+                notify("AegisSwarm System Health", msg, level="normal")
+            except Exception:
+                pass
 
         def openProtector_(self, _sender) -> None:
             show_native_section(section="Status", status_item=self.status_item)
