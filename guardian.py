@@ -283,13 +283,19 @@ class GuardianDaemon:
             ):
                 continue
 
+            if self.config.cmd_scope_filter:
+                try:
+                    raw_cmd = " ".join(proc.cmdline() or [])
+                except (psutil.Error, OSError):
+                    continue
+                if self.config.cmd_scope_filter not in raw_cmd:
+                    continue
+
             snapshot = capture_process_snapshot(pid)
             if snapshot is None:
                 continue
 
             cmd_str = snapshot.cmdline_str()
-            if self.config.cmd_scope_filter and self.config.cmd_scope_filter not in cmd_str:
-                continue
 
             sig = f"{cmd_str}|{' '.join(snapshot.connections[:3])}"
             if self._inspected.get(pid) == sig:
