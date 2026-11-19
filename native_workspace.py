@@ -168,7 +168,7 @@ def _build():
             title = NSTextField.labelWithString_('AegisSwarm')
             title.setFrame_(NSMakeRect(66, 608, 280, 24));content.addSubview_(title)
             self.headline = label('Real-time autonomous defense & system health ready.', 572, 24)
-            self.home_button = button('Test managed guard', 'guardClicked:', 365, 596, 205)
+            self.home_button = button('Run Live Kill-Chain Test', 'guardClicked:', 365, 596, 205)
             before_details = len(content.subviews())
             self.scenarios = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 500, 330, 28), False)
             self.scenarios.addItemsWithTitles_(['Hidden document trap', 'Stolen keys over network', 'Webpage hijack'])
@@ -234,7 +234,7 @@ def _build():
                 if view not in (self.scroll, self.footer, self.copy_button, self.dry_button):
                     view.setFrameOrigin_((frame.origin.x, frame.origin.y - (180 if self.mode == 'AI task' else (220 if compact else 0))))
             self.details_button.setTitle_('Show details')
-            self.home_button.setTitle_('Review only...' if self.mode == 'AI task' else 'Test managed guard')
+            self.home_button.setTitle_('Review only...' if self.mode == 'AI task' else 'Run Live Kill-Chain Test')
             self.showing_check_details = False
             self.dry_button.setHidden_(self.mode != 'AI task')
             self.dry_button.setEnabled_(self.review_flow.pending is not None)
@@ -396,8 +396,8 @@ def _build():
             self.operation_kind = kind
             self.setBusy_(True)
             self.download = None
-            self.headline.setStringValue_('Checking... please wait for the result and cleanup.')
-            self.results.setString_('Running in a disposable offline workspace.\nSupervising the owned workload, applying policy, then verifying cleanup.\n\nKeep MuseSwarm open. No network or AI credits are used by offline checks.')
+            self.headline.setStringValue_('Running AegisSwarm check... please wait.')
+            self.results.setString_('Running real-time autonomous check.\nDetect -> Freeze -> Council Analyze -> Eliminate -> Report.\n\nKeep AegisSwarm open.')
             def worker():
                 try:
                     message, download = operation()
@@ -505,18 +505,34 @@ def _build():
             self.sections.selectItemWithTitle_('Safety check')
             self.sectionChanged_(None)
             def operation():
-                from managed_guard import prove_intervention
-                result = prove_intervention()
-                text = ['Safety check passed.' if result['proof_passed'] else 'Safety check needs attention.',
-                        'Scripted workload. Real blocking and container cleanup.',
-                        ('A safe file task ran. The forbidden file request was blocked.' if result['proof_passed'] else 'The check did not verify every required step. Review details.'),
-                        'Container stopped: ' + ('Yes' if result['stopped'] else 'No'),
-                        'Container removed: ' + ('Yes' if result['removed'] else 'No'),
-                        'Not an intelligent AI agent or whole-Mac protection.', '', 'Evidence:']
-                text.extend(event['kind'] + ': ' + json.dumps({k:v for k,v in event.items() if k != 'kind'}) for event in result['events'])
-                if not result['removed']:
-                    text.append('Cleanup needs attention: ' + result['name'])
-                text.append('Next: review this result. No private host files were requested by a real tool; the denied path was synthetic protocol data.')
+                import subprocess, sys
+                from system_optimizer import collect_health_snapshot, analyze_optimizations
+                root = Path(__file__).resolve().parent
+                proof_script = root / 'safe_range' / 'run_live_autonomous_proof.py'
+                proc = subprocess.run(
+                    [sys.executable, str(proof_script)],
+                    cwd=str(root),
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                )
+                if proc.returncode != 0:
+                    raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or 'Live kill-chain proof failed.')
+                proof_data = json.loads(proc.stdout)
+                snap = collect_health_snapshot()
+                advisories = analyze_optimizations(snap)
+                text = [
+                    'Live Kill-Chain Proof PASSED.',
+                    f"OS: {proof_data.get('os')} | Elapsed: {proof_data.get('elapsed_seconds')}s",
+                    f"Stages: {' -> '.join(proof_data.get('stages', []))}",
+                    f"Target PID: {proof_data.get('target_pid')} | Verdict: {proof_data.get('verdict')} ({proof_data.get('agent')}, score {proof_data.get('threat_score')})",
+                    f"Action: {proof_data.get('action_detail')}",
+                    '',
+                    f"System Health: CPU {snap['cpu_percent']}% | RAM {snap['memory_percent']}% | Disk {snap['disk_percent']}% | Advisories: {len(advisories)}",
+                    '',
+                    'Evidence:',
+                    json.dumps(proof_data, indent=2),
+                ]
                 return '\n'.join(text), None
             self.startWorker_(operation, kind='check')
 
