@@ -107,13 +107,24 @@ def open_workspace(section: str = "Overview", status_item=None) -> None:
 
 def _build():
     import objc
-    from AppKit import (NSPanel, NSMakeRect, NSBackingStoreBuffered,
+    from AppKit import (NSPanel, NSMakeRect, NSMakeSize, NSBackingStoreBuffered,
                         NSWindowStyleMaskTitled, NSWindowStyleMaskClosable,
                         NSFloatingWindowLevel, NSTextField, NSTextView, NSScrollView,
                         NSButton, NSOpenPanel, NSSavePanel, NSAlert, NSModalResponseOK,
                         NSAlertFirstButtonReturn, NSPopUpButton, NSImageView, NSImage, NSSound,
-                        NSPasteboard, NSPasteboardTypeString)
+                        NSPasteboard, NSPasteboardTypeString, NSColor, NSBox, NSFont,
+                        NSAppearance, NSSegmentedControl)
     from Foundation import NSObject
+
+    def _rgba(r, g, b, a=1.0):
+        return NSColor.colorWithRed_green_blue_alpha_(r / 255.0, g / 255.0, b / 255.0, a)
+
+    _BG = _rgba(10, 13, 18)
+    _CARD = _rgba(18, 24, 33)
+    _BORDER = _rgba(38, 49, 66)
+    _EMERALD = _rgba(61, 214, 140)
+    _TEXT = _rgba(232, 237, 245)
+    _MUTED = _rgba(139, 149, 168)
 
     class WorkspaceController(NSObject):
         def init(self):
@@ -124,15 +135,19 @@ def _build():
             self.busy = False
             self.download = None
             self.panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-                NSMakeRect(0, 0, 590, 660), NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
+                NSMakeRect(0, 0, 620, 660), NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
                 NSBackingStoreBuffered, False)
             self.panel.setTitle_('AegisSwarm')
             self.panel.setReleasedWhenClosed_(False)
             self.panel.setLevel_(NSFloatingWindowLevel)
+            self.panel.setAppearance_(NSAppearance.appearanceNamed_('NSAppearanceNameDarkAqua'))
+            self.panel.setBackgroundColor_(_BG)
+            self.panel.setTitlebarAppearsTransparent_(True)
             self.panel.center()
             self.workspace_views = []
             self.top_views = []
             self.friendly_views = []
+            self.metric_cards = []
             self.mode = 'Overview'
             self.last_analysis = None
             from task_review import ReviewFlow
@@ -144,58 +159,109 @@ def _build():
             self.protected_flow = None
             self.visual_panel = None
             content = self.panel.contentView()
-            def label(text, y, height=36):
+
+            def card(x, y, w, h, radius=12.0):
+                box = NSBox.alloc().initWithFrame_(NSMakeRect(x, y, w, h))
+                box.setBoxType_(4)  # NSBoxCustom
+                box.setBorderType_(1)
+                box.setCornerRadius_(radius)
+                box.setFillColor_(_CARD)
+                box.setBorderColor_(_BORDER)
+                box.setBorderWidth_(1.0)
+                box.setTitlePosition_(0)  # NSNoTitle
+                content.addSubview_(box)
+                return box
+
+            def label(text, y, height=36, x=18, width=584, size=13, bold=False, color=_TEXT):
                 field = NSTextField.labelWithString_(text)
-                field.setFrame_(NSMakeRect(18, y, 554, height))
+                field.setFrame_(NSMakeRect(x, y, width, height))
                 field.setLineBreakMode_(0)
+                field.setTextColor_(color)
+                field.setFont_(NSFont.boldSystemFontOfSize_(size) if bold else NSFont.systemFontOfSize_(size))
                 content.addSubview_(field)
                 return field
-            def button(text, selector, x, y, width):
-                view = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, width, 30))
+
+            def button(text, selector, x, y, width, height=32, accent=False):
+                view = NSButton.alloc().initWithFrame_(NSMakeRect(x, y, width, height))
                 view.setTitle_(text);view.setBezelStyle_(1)
+                if accent:
+                    view.setBezelColor_(_EMERALD)
                 view.setTarget_(self);view.setAction_(selector);content.addSubview_(view)
                 return view
+
             def entry(text, y):
-                field = NSTextField.alloc().initWithFrame_(NSMakeRect(18, y, 554, 28))
+                field = NSTextField.alloc().initWithFrame_(NSMakeRect(18, y, 584, 28))
                 field.setStringValue_(text);content.addSubview_(field);return field
-            self.sections = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 540, 330, 28), False)
-            self.sections.addItemsWithTitles_(['Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'Attack catalog', 'Policy checks', 'Activity and evidence', 'Latest analysis', 'AI task', 'Protected task', 'Workspace', 'About'])
-            self.sections.setTarget_(self);self.sections.setAction_('sectionChanged:');content.addSubview_(self.sections)
-            self.details_button = button('Show details', 'detailsClicked:', 365, 540, 205)
+
+            # Hero Card
+            self.hero_card = card(18, 576, 584, 72, radius=12.0)
             mark = NSImage.alloc().initWithContentsOfFile_(str(Path(__file__).resolve().parent / 'assets' / 'brand' / 'swarmguard-mark.png'))
-            brand = NSImageView.alloc().initWithFrame_(NSMakeRect(18, 596, 36, 36))
+            brand = NSImageView.alloc().initWithFrame_(NSMakeRect(32, 590, 44, 44))
             self.brand_icon = mark
             brand.setImage_(mark);brand.setImageScaling_(0);content.addSubview_(brand)
-            title = NSTextField.labelWithString_('AegisSwarm')
-            title.setFrame_(NSMakeRect(66, 608, 280, 24));content.addSubview_(title)
-            self.headline = label('Live Protection is OFF — Click "Turn On Protection" to start.', 572, 24)
-            self.home_button = button('Turn On Protection', 'toggleProtectionClicked:', 365, 596, 205)
+            title = label('AegisSwarm', 614, 24, x=88, width=300, size=18, bold=True, color=_TEXT)
+            self.title_label = title
+            self.headline = label('Protection Paused — Click "Turn On Protection" to start.', 586, 22, x=88, width=320, size=12, color=_MUTED)
+            self.home_button = button('Turn On Protection', 'toggleProtectionClicked:', 412, 594, 176, height=36, accent=True)
+
+            # Segmented Tab Bar + Advanced dropdown
+            self.tabs = NSSegmentedControl.alloc().initWithFrame_(NSMakeRect(18, 536, 446, 28))
+            self.tabs.setSegmentCount_(4)
+            for idx, name in enumerate(('Overview', 'Mac Health', 'Activity', 'Test Blocking')):
+                self.tabs.setLabel_forSegment_(name, idx)
+                self.tabs.setWidth_forSegment_(110, idx)
+            self.tabs.setSelectedSegment_(0)
+            self.tabs.setTarget_(self);self.tabs.setAction_('tabChanged:')
+            content.addSubview_(self.tabs)
+
+            self.sections = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(472, 536, 130, 28), False)
+            self.sections.addItemsWithTitles_(['Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'Attack catalog', 'Policy checks', 'Activity and evidence', 'Latest analysis', 'AI task', 'Protected task', 'Workspace', 'About'])
+            self.sections.setTarget_(self);self.sections.setAction_('sectionChanged:');content.addSubview_(self.sections)
+
+            # 3 Mac Health Metric Cards (Overview + Mac Health)
+            before_metrics = len(content.subviews())
+            card(18, 444, 186, 78, radius=10.0)
+            label('PROCESSOR (CPU)', 496, 16, x=32, width=160, size=10, bold=True, color=_MUTED)
+            self.cpu_val = label('--%', 462, 30, x=32, width=160, size=22, bold=True, color=_EMERALD)
+            card(217, 444, 186, 78, radius=10.0)
+            label('MEMORY (RAM)', 496, 16, x=231, width=160, size=10, bold=True, color=_MUTED)
+            self.ram_val = label('--%', 462, 30, x=231, width=160, size=22, bold=True, color=_EMERALD)
+            card(416, 444, 186, 78, radius=10.0)
+            label('STORAGE (DISK)', 496, 16, x=430, width=160, size=10, bold=True, color=_MUTED)
+            self.disk_val = label('--%', 462, 30, x=430, width=160, size=22, bold=True, color=_EMERALD)
+            self.metric_cards = list(content.subviews())[before_metrics:]
+
+            # Friendly Quick Action Row
             before_friendly = len(content.subviews())
-            self.clean_button = button('Clean Up Mac', 'cleanMacClicked:', 18, 500, 175)
-            self.test_block_button = button('Test Threat Blocking', 'guardClicked:', 205, 500, 175)
-            self.web_button = button('Open Web Dashboard', 'webConsoleClicked:', 392, 500, 178)
+            self.clean_button = button('Clean Up Mac', 'cleanMacClicked:', 18, 400, 186, height=32, accent=True)
+            self.test_block_button = button('Test Threat Blocking', 'guardClicked:', 217, 400, 186, height=32)
+            self.web_button = button('Open Web Dashboard', 'webConsoleClicked:', 416, 400, 186, height=32)
             self.friendly_views = list(content.subviews())[before_friendly:]
+
+            # Legacy / Advanced top views (hidden in friendly modes)
             before_details = len(content.subviews())
-            self.scenarios = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 500, 330, 28), False)
+            self.scenarios = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 496, 330, 28), False)
             self.scenarios.addItemsWithTitles_(['Hidden document trap', 'Stolen keys over network', 'Webpage hijack'])
             content.addSubview_(self.scenarios)
-            demo_button = button('AI demo paused', 'demoClicked:', 365, 500, 205)
+            demo_button = button('AI demo paused', 'demoClicked:', 365, 496, 237)
             demo_button.setEnabled_(False)
-            button('Sound preview', 'soundClicked:', 18, 462, 170)
-            button('Clear latest notice', 'clearClicked:', 200, 462, 175)
-            button('Refresh status', 'sectionChanged:', 385, 462, 185)
-            button('View latest visual evidence', 'visualClicked:', 18, 424, 265)
+            button('Sound preview', 'soundClicked:', 18, 458, 186)
+            button('Clear latest notice', 'clearClicked:', 217, 458, 186)
+            button('Refresh status', 'sectionChanged:', 416, 458, 186)
+            button('View latest visual evidence', 'visualClicked:', 18, 420, 265)
             self.top_views = list(content.subviews())[before_details:]
+
+            # Legacy Workspace views
             before_workspace = len(content.subviews())
-            self.workspace_scope = label('Offline copied files only. No host mounts, keys, downloads or cloud agents.\nAgents running elsewhere are not protected.', 598, 44)
+            self.workspace_scope = label('Offline copied files only. No host mounts, keys, downloads or cloud agents.\nAgents running elsewhere are not protected.', 598, 44, width=554)
             self.check_button = button('Run complete offline check', 'checkClicked:', 18, 556, 265)
             self.pick_button = button('Choose source files...', 'chooseClicked:', 300, 556, 270)
-            self.selection = label('No files selected. Only explicitly chosen source is read.', 514)
-            self.command_label = label('Trusted in-image command (absolute executable):', 480, 22)
+            self.selection = label('No files selected. Only explicitly chosen source is read.', 514, width=554)
+            self.command_label = label('Trusted in-image command (absolute executable):', 480, 22, width=554)
             self.command = entry("/bin/sh -c 'cat input.txt > result.txt'", 449)
-            self.exports_label = label('Requested output filenames (comma separated, up to 20):', 417, 22)
+            self.exports_label = label('Requested output filenames (comma separated, up to 20):', 417, 22, width=554)
             self.exports = entry('result.txt', 387)
-            self.workspace_limits = label('1 MiB/file, 4 MiB total. Hidden/credential-like paths refused.\nSecret detection is not exhaustive. Never choose private documents or keys.', 333, 43)
+            self.workspace_limits = label('1 MiB/file, 4 MiB total. Hidden/credential-like paths refused.\nSecret detection is not exhaustive. Never choose private documents or keys.', 333, 43, width=554)
             self.run_button = button('Review and run copies', 'runClicked:', 18, 291, 265)
             self.save_button = button('Save outputs for review...', 'saveClicked:', 300, 291, 270)
             self.save_button.setEnabled_(False)
@@ -205,27 +271,45 @@ def _build():
             for view in self.workspace_views:
                 frame = view.frame()
                 view.setFrameOrigin_((frame.origin.x, frame.origin.y - 110))
-            scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(18, 48, 554, 229))
+
+            # Styled Dark Output Card
+            scroll = NSScrollView.alloc().initWithFrame_(NSMakeRect(18, 50, 584, 336))
             self.scroll = scroll
             scroll.setHasVerticalScroller_(True)
-            self.results = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 534, 229))
+            scroll.setDrawsBackground_(True)
+            scroll.setBackgroundColor_(_CARD)
+            self.results = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 564, 336))
             self.results.setEditable_(False)
             self.results.setSelectable_(True)
+            self.results.setBackgroundColor_(_CARD)
+            self.results.setTextColor_(_TEXT)
+            self.results.setFont_(NSFont.systemFontOfSize_(13))
+            self.results.setTextContainerInset_(NSMakeSize(14, 12))
             self.results.setString_('Loading AegisSwarm...')
             self.results.setVerticallyResizable_(True)
             self.results.setHorizontallyResizable_(False)
             self.results.textContainer().setWidthTracksTextView_(True)
             scroll.setDocumentView_(self.results);content.addSubview_(scroll)
-            self.footer = label('AegisSwarm protects your Mac in real time and keeps it running smoothly.', 12, 24)
-            self.footer.setFrame_(NSMakeRect(18, 12, 380, 24))
-            self.copy_button = button('Copy results', 'copyClicked:', 418, 10, 154)
-            self.dry_button = button('Check start - no spend', 'dryStartClicked:', 18, 300, 554)
+
+            self.footer = label('AegisSwarm protects your Mac in real time and keeps it running smoothly.', 14, 22, x=18, width=330, size=11, color=_MUTED)
+            self.details_button = button('Show details', 'detailsClicked:', 356, 10, 120, height=28)
+            self.copy_button = button('Copy results', 'copyClicked:', 482, 10, 120, height=28)
+            self.dry_button = button('Check start - no spend', 'dryStartClicked:', 18, 300, 584)
             self.dry_button.setEnabled_(False)
             self.base_frames = [(view, view.frame()) for view in content.subviews()]
             self.showing_check_details = False
             self.panel.setDelegate_(self)
             self.sectionChanged_(None)
             return self
+
+        def tabChanged_(self, _sender):
+            if self.busy:
+                return
+            mapping = ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking')
+            idx = int(self.tabs.selectedSegment())
+            if 0 <= idx < len(mapping):
+                self.sections.selectItemWithTitle_(mapping[idx])
+                self.sectionChanged_(None)
 
         def sectionChanged_(self, _sender):
             if self.busy:
@@ -235,11 +319,12 @@ def _build():
             self.protected_plan = None
             self.mode = str(self.sections.titleOfSelectedItem())
             friendly = self.mode in ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking')
-            compact = self.mode in ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'AI task')
-            self.panel.setContentSize_((590, 480 if self.mode == 'AI task' else (480 if friendly else (440 if compact else 660))))
+            show_metrics = self.mode in ('Overview', 'Mac Health & Cleanup')
+            compact = self.mode in ('Status', 'Safety check', 'AI task')
+            self.panel.setContentSize_((620, 480 if self.mode == 'AI task' else (440 if compact else 660)))
             for view, frame in self.base_frames:
                 if view not in (self.scroll, self.footer, self.copy_button, self.dry_button):
-                    view.setFrameOrigin_((frame.origin.x, frame.origin.y - (180 if (self.mode == 'AI task' or friendly) else (220 if compact else 0))))
+                    view.setFrameOrigin_((frame.origin.x, frame.origin.y - (180 if self.mode == 'AI task' else (220 if compact else 0))))
             self.details_button.setTitle_('Show details')
             self.showing_check_details = False
             self.dry_button.setHidden_(self.mode != 'AI task')
@@ -256,10 +341,13 @@ def _build():
             _friendly_views = getattr(self, 'friendly_views', ())
             for view in (_friendly_views if isinstance(_friendly_views, (list, tuple)) else ()):
                 view.setHidden_(not friendly)
-            self.scroll.setFrame_(NSMakeRect(18, 48, 554, 120 if workspace else (240 if self.mode == 'AI task' else (260 if friendly else (350 if details else 250)))))
+            _metric_cards = getattr(self, 'metric_cards', ())
+            for view in (_metric_cards if isinstance(_metric_cards, (list, tuple)) else ()):
+                view.setHidden_(not show_metrics)
+            self.scroll.setFrame_(NSMakeRect(18, 50, 584, 120 if workspace else (240 if self.mode == 'AI task' else (336 if (friendly and show_metrics) else (466 if friendly else (350 if details else 250))))))
             if protected:
                 from native_task_flow import NATIVE_LIVE_RELEASED,limits_text
-                self.panel.setContentSize_((590,660))
+                self.panel.setContentSize_((620,660))
                 self.home_button.setHidden_(True)
                 self.details_button.setHidden_(True)
                 for view in self.top_views:view.setHidden_(True)
@@ -277,7 +365,10 @@ def _build():
                 self.results.setString_('1. Choose non-secret source files.\n2. Write a goal and click Review protected task.\n3. Check the exact copies in this area.\n\nLive Start is disabled. No AI request or worker can start from Review.' if not NATIVE_LIVE_RELEASED else 'Choose source files, write a goal, then review the exact copies before Start.')
                 return
             self.home_button.setHidden_(False)
-            self.details_button.setHidden_(False)
+            self.details_button.setHidden_(self.mode not in ('Test Blocking', 'Safety check', 'AI task'))
+            tab_map = {'Overview': 0, 'Mac Health & Cleanup': 1, 'Activity': 2, 'Test Blocking': 3}
+            if self.mode in tab_map and hasattr(self, 'tabs'):
+                self.tabs.setSelectedSegment_(tab_map[self.mode])
             try:
                 import menubar
                 prot_on = menubar.guardian_running()
@@ -288,11 +379,26 @@ def _build():
             else:
                 self.home_button.setTitle_('Pause Protection' if prot_on else 'Turn On Protection')
                 if friendly:
+                    from AppKit import NSColor
                     self.headline.setStringValue_(
-                        'Live Protection is ON — Watching your Mac in real time.'
+                        '● Live Protection Active — Watching your Mac in real time'
                         if prot_on else
-                        'Live Protection is OFF — Click "Turn On Protection" to start.'
+                        '○ Protection Paused — Click "Turn On Protection" to start'
                     )
+                    self.headline.setTextColor_(
+                        NSColor.colorWithRed_green_blue_alpha_(61 / 255.0, 214 / 255.0, 140 / 255.0, 1.0)
+                        if prot_on else
+                        NSColor.colorWithRed_green_blue_alpha_(139 / 255.0, 149 / 255.0, 168 / 255.0, 1.0)
+                    )
+            if show_metrics and hasattr(self, 'cpu_val'):
+                try:
+                    from system_optimizer import collect_health_snapshot
+                    snap = collect_health_snapshot()
+                    self.cpu_val.setStringValue_(f'{snap.cpu_percent:.0f}%')
+                    self.ram_val.setStringValue_(f'{snap.memory_percent:.0f}%')
+                    self.disk_val.setStringValue_(f'{snap.disk_percent:.0f}%')
+                except Exception:
+                    pass
             if self.mode == 'AI task':
                 self.results.setString_(check_summary(getattr(self, 'last_model', 'PAID EXECUTION PAUSED\n\nReview only shows the built-in synthetic source and task. It cannot start a model or worker.\n\nAfter closing review, a separate Check start - no spend button checks a one-use source/task binding. That check also cannot spend.\n\nThe earlier approval-screen cause is unresolved. No paid re-enable from this check.')));return
             if self.mode == 'Safety check':
@@ -531,10 +637,16 @@ def _build():
                 msg = menubar.toggle_live_guardian()
                 running = menubar.guardian_running()
                 self.home_button.setTitle_('Pause Protection' if running else 'Turn On Protection')
+                from AppKit import NSColor
                 self.headline.setStringValue_(
-                    'Live Protection is ON — Watching your Mac in real time.'
+                    '● Live Protection Active — Watching your Mac in real time'
                     if running else
-                    'Live Protection is OFF — Click "Turn On Protection" to start.'
+                    '○ Protection Paused — Click "Turn On Protection" to start'
+                )
+                self.headline.setTextColor_(
+                    NSColor.colorWithRed_green_blue_alpha_(61 / 255.0, 214 / 255.0, 140 / 255.0, 1.0)
+                    if running else
+                    NSColor.colorWithRed_green_blue_alpha_(139 / 255.0, 149 / 255.0, 168 / 255.0, 1.0)
                 )
                 if self.mode == 'Overview':
                     self.sectionChanged_(None)
@@ -549,17 +661,27 @@ def _build():
             self.sections.selectItemWithTitle_('Mac Health & Cleanup')
             self.sectionChanged_(None)
             def operation():
-                from system_optimizer import collect_health_snapshot, analyze_optimizations, apply_safe_cleanup
-                res = apply_safe_cleanup(dry_run=False)
+                from system_optimizer import (
+                    collect_health_snapshot,
+                    analyze_optimizations,
+                    apply_safe_cleanup,
+                    default_cleanup_archive_dir,
+                )
+                snap_before = collect_health_snapshot()
+                advisories_before = analyze_optimizations(snap_before)
+                cleaned = apply_safe_cleanup(advisories_before, dry_run=False)
                 snap = collect_health_snapshot()
                 advisories = analyze_optimizations(snap)
-                reclaimed_mb = round(res.get('reclaimed_bytes', 0) / (1024 * 1024), 2)
-                archived = res.get('archived_count', 0)
+                reclaimed_bytes = sum(int(r.get('reclaimed_bytes') or 0) for r in cleaned if r.get('action') == 'REVERSIBLE_CLEANUP')
+                reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 2)
+                archived = sum(1 for r in cleaned if r.get('action') == 'REVERSIBLE_CLEANUP')
                 lines = [
-                    'Mac Cleanup Complete!',
+                    'Mac Cleanup Complete!' if archived else 'Mac Already Clean!',
                     '',
-                    f'• Safely archived {archived} stale temp file(s) ({reclaimed_mb} MB freed).',
-                    f'• Everything is reversible — saved to: {res.get("archive_dir")}',
+                    (f'• Safely archived {archived} stale temp file(s) ({reclaimed_mb} MB freed).'
+                     if archived else
+                     '• No stale temporary files needed cleanup right now.'),
+                    f'• Undo folder: {default_cleanup_archive_dir()}',
                     '',
                     'Current Mac Health:',
                     f'• Processor (CPU): {snap.cpu_percent:.0f}% used',
