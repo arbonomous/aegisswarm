@@ -201,7 +201,7 @@ def _build():
             brand.setImage_(mark);brand.setImageScaling_(0);content.addSubview_(brand)
             title = label('AegisSwarm', 614, 24, x=88, width=300, size=18, bold=True, color=_TEXT)
             self.title_label = title
-            self.headline = label('Protection Paused \u2014 Click "Turn On Protection" to start.', 586, 22, x=88, width=320, size=12, color=_MUTED)
+            self.headline = label('\u25cb Protection Paused', 586, 22, x=88, width=320, size=12, color=_MUTED)
             self.home_button = button('Turn On Protection', 'toggleProtectionClicked:', 412, 594, 176, height=36, accent=True)
 
             # 3 Simple Consumer Tabs (Home | Health | Activity)
@@ -290,7 +290,7 @@ def _build():
             self.results.textContainer().setWidthTracksTextView_(True)
             scroll.setDocumentView_(self.results);content.addSubview_(scroll)
 
-            self.footer = label('AegisSwarm protects your Mac in real time and keeps it running smoothly.', 14, 22, x=18, width=330, size=11, color=_MUTED)
+            self.footer = label('AegisSwarm protects your Mac in real time.', 14, 22, x=18, width=560, size=11, color=_MUTED)
             self.details_button = button('Show details', 'detailsClicked:', 356, 10, 120, height=28)
             self.copy_button = button('Copy results', 'copyClicked:', 482, 10, 120, height=28)
             self.dry_button = button('Check start - no spend', 'dryStartClicked:', 18, 300, 584)
@@ -391,9 +391,9 @@ def _build():
                 if friendly:
                     from AppKit import NSColor
                     self.headline.setStringValue_(
-                        '\u25cf Live Protection Active \u2014 Watching your Mac in real time'
+                        '\u25cf Live Protection Active'
                         if prot_on else
-                        '\u25cb Protection Paused \u2014 Click "Turn On Protection" to start'
+                        '\u25cb Protection Paused'
                     )
                     self.headline.setTextColor_(
                         NSColor.colorWithRed_green_blue_alpha_(61 / 255.0, 214 / 255.0, 140 / 255.0, 1.0)
@@ -649,9 +649,9 @@ def _build():
                 self.home_button.setTitle_('Pause Protection' if running else 'Turn On Protection')
                 from AppKit import NSColor
                 self.headline.setStringValue_(
-                    '\u25cf Live Protection Active \u2014 Watching your Mac in real time'
+                    '\u25cf Live Protection Active'
                     if running else
-                    '\u25cb Protection Paused \u2014 Click "Turn On Protection" to start'
+                    '\u25cb Protection Paused'
                 )
                 self.headline.setTextColor_(
                     NSColor.colorWithRed_green_blue_alpha_(61 / 255.0, 214 / 255.0, 140 / 255.0, 1.0)

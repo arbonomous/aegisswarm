@@ -892,13 +892,13 @@ def _run_rumps() -> None:
             self._apply_snapshot(_status_snapshot())
 
         def _on_open(self, _sender: Any) -> None:
-            show_native_section(section="Status", status_item=_rumps_status_item(self))
+            show_native_section(section="Overview", status_item=_rumps_status_item(self))
 
         def _on_proofs(self, _sender: Any) -> None:
             show_native_section(section="Safety check", status_item=_rumps_status_item(self))
 
         def _on_activity(self, _sender: Any) -> None:
-            show_native_section(section="Activity and evidence", status_item=_rumps_status_item(self))
+            show_native_section(section="Activity", status_item=_rumps_status_item(self))
 
         def _on_task(self, _sender: Any) -> None:
             open_guarded_task()
