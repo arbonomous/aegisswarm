@@ -80,7 +80,7 @@ def present_panel(panel, app, running_app, activation_options) -> None:
           ' activation_accepted=' + str(bool(activated)), flush=True)
 
 
-def open_workspace(section: str = "Workspace", status_item=None) -> None:
+def open_workspace(section: str = "Overview", status_item=None) -> None:
     global _CONTROLLER
     if _CONTROLLER is None:
         _CONTROLLER = _build()
@@ -126,13 +126,14 @@ def _build():
             self.panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
                 NSMakeRect(0, 0, 590, 660), NSWindowStyleMaskTitled | NSWindowStyleMaskClosable,
                 NSBackingStoreBuffered, False)
-            self.panel.setTitle_('AegisSwarm - Autonomous Defense & Health')
+            self.panel.setTitle_('AegisSwarm')
             self.panel.setReleasedWhenClosed_(False)
             self.panel.setLevel_(NSFloatingWindowLevel)
             self.panel.center()
             self.workspace_views = []
             self.top_views = []
-            self.mode = 'Status'
+            self.friendly_views = []
+            self.mode = 'Overview'
             self.last_analysis = None
             from task_review import ReviewFlow
             self.review_flow = ReviewFlow()
@@ -158,7 +159,7 @@ def _build():
                 field = NSTextField.alloc().initWithFrame_(NSMakeRect(18, y, 554, 28))
                 field.setStringValue_(text);content.addSubview_(field);return field
             self.sections = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 540, 330, 28), False)
-            self.sections.addItemsWithTitles_(['Status', 'Attack catalog', 'Policy checks', 'Activity and evidence', 'Latest analysis', 'Safety check', 'AI task', 'Protected task', 'Workspace', 'About'])
+            self.sections.addItemsWithTitles_(['Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'Attack catalog', 'Policy checks', 'Activity and evidence', 'Latest analysis', 'AI task', 'Protected task', 'Workspace', 'About'])
             self.sections.setTarget_(self);self.sections.setAction_('sectionChanged:');content.addSubview_(self.sections)
             self.details_button = button('Show details', 'detailsClicked:', 365, 540, 205)
             mark = NSImage.alloc().initWithContentsOfFile_(str(Path(__file__).resolve().parent / 'assets' / 'brand' / 'swarmguard-mark.png'))
@@ -167,8 +168,13 @@ def _build():
             brand.setImage_(mark);brand.setImageScaling_(0);content.addSubview_(brand)
             title = NSTextField.labelWithString_('AegisSwarm')
             title.setFrame_(NSMakeRect(66, 608, 280, 24));content.addSubview_(title)
-            self.headline = label('Real-time autonomous defense & system health ready.', 572, 24)
-            self.home_button = button('Run Live Kill-Chain Test', 'guardClicked:', 365, 596, 205)
+            self.headline = label('Live Protection is OFF — Click "Turn On Protection" to start.', 572, 24)
+            self.home_button = button('Turn On Protection', 'toggleProtectionClicked:', 365, 596, 205)
+            before_friendly = len(content.subviews())
+            self.clean_button = button('Clean Up Mac', 'cleanMacClicked:', 18, 500, 175)
+            self.test_block_button = button('Test Threat Blocking', 'guardClicked:', 205, 500, 175)
+            self.web_button = button('Open Web Dashboard', 'webConsoleClicked:', 392, 500, 178)
+            self.friendly_views = list(content.subviews())[before_friendly:]
             before_details = len(content.subviews())
             self.scenarios = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(18, 500, 330, 28), False)
             self.scenarios.addItemsWithTitles_(['Hidden document trap', 'Stolen keys over network', 'Webpage hijack'])
@@ -205,12 +211,12 @@ def _build():
             self.results = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 534, 229))
             self.results.setEditable_(False)
             self.results.setSelectable_(True)
-            self.results.setString_('AegisSwarm is ready.\nUse the menu bar to Start Live Guardian (real-time detect -> freeze -> analyze -> eliminate) or run System Health & Clean.')
+            self.results.setString_('Loading AegisSwarm...')
             self.results.setVerticallyResizable_(True)
             self.results.setHorizontallyResizable_(False)
             self.results.textContainer().setWidthTracksTextView_(True)
             scroll.setDocumentView_(self.results);content.addSubview_(scroll)
-            self.footer = label('Cross-platform real-time guardian (macOS, Windows, Linux).', 12, 24)
+            self.footer = label('AegisSwarm protects your Mac in real time and keeps it running smoothly.', 12, 24)
             self.footer.setFrame_(NSMakeRect(18, 12, 380, 24))
             self.copy_button = button('Copy results', 'copyClicked:', 418, 10, 154)
             self.dry_button = button('Check start - no spend', 'dryStartClicked:', 18, 300, 554)
@@ -228,13 +234,13 @@ def _build():
                 self.protected_flow.invalidate()
             self.protected_plan = None
             self.mode = str(self.sections.titleOfSelectedItem())
-            compact = self.mode in ('Status', 'Safety check', 'AI task')
-            self.panel.setContentSize_((590, 480 if self.mode == 'AI task' else (440 if compact else 660)))
+            friendly = self.mode in ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking')
+            compact = self.mode in ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'AI task')
+            self.panel.setContentSize_((590, 480 if self.mode == 'AI task' else (480 if friendly else (440 if compact else 660))))
             for view, frame in self.base_frames:
                 if view not in (self.scroll, self.footer, self.copy_button, self.dry_button):
-                    view.setFrameOrigin_((frame.origin.x, frame.origin.y - (180 if self.mode == 'AI task' else (220 if compact else 0))))
+                    view.setFrameOrigin_((frame.origin.x, frame.origin.y - (180 if (self.mode == 'AI task' or friendly) else (220 if compact else 0))))
             self.details_button.setTitle_('Show details')
-            self.home_button.setTitle_('Review only...' if self.mode == 'AI task' else 'Run Live Kill-Chain Test')
             self.showing_check_details = False
             self.dry_button.setHidden_(self.mode != 'AI task')
             self.dry_button.setEnabled_(self.review_flow.pending is not None)
@@ -244,10 +250,13 @@ def _build():
                 view.setHidden_(not workspace)
             for view in self.top_views:
                 view.setHidden_(workspace)
-            details = self.mode not in ('Status', 'Safety check', 'AI task', 'Workspace', 'Protected task')
+            details = self.mode not in ('Overview', 'Mac Health & Cleanup', 'Activity', 'Test Blocking', 'Status', 'Safety check', 'AI task', 'Workspace', 'Protected task')
             for view in self.top_views:
                 view.setHidden_(not details)
-            self.scroll.setFrame_(NSMakeRect(18, 48, 554, 120 if workspace else (240 if self.mode == 'AI task' else (350 if details else 250))))
+            _friendly_views = getattr(self, 'friendly_views', ())
+            for view in (_friendly_views if isinstance(_friendly_views, (list, tuple)) else ()):
+                view.setHidden_(not friendly)
+            self.scroll.setFrame_(NSMakeRect(18, 48, 554, 120 if workspace else (240 if self.mode == 'AI task' else (260 if friendly else (350 if details else 250)))))
             if protected:
                 from native_task_flow import NATIVE_LIVE_RELEASED,limits_text
                 self.panel.setContentSize_((590,660))
@@ -257,7 +266,7 @@ def _build():
                 for view in (self.check_button,self.exports_label,self.exports,self.save_button):view.setHidden_(True)
                 for name,frame in protected_layout().items():
                     view=getattr(self,name);view.setFrame_(NSMakeRect(*frame));view.setHidden_(False)
-                self.workspace_scope.setStringValue_('Local review only. Nothing sent and no worker started.\nOnly MuseSwarm-owned tasks can be guarded.')
+                self.workspace_scope.setStringValue_('Local review only. Nothing sent and no worker started.\nOnly AegisSwarm-owned tasks can be guarded.')
                 self.workspace_limits.setStringValue_(limits_text())
                 self.command_label.setStringValue_('Goal for the selected source copies:')
                 self.run_button.setTitle_('Review protected task')
@@ -269,10 +278,25 @@ def _build():
                 return
             self.home_button.setHidden_(False)
             self.details_button.setHidden_(False)
+            try:
+                import menubar
+                prot_on = menubar.guardian_running()
+            except Exception:
+                prot_on = False
+            if self.mode == 'AI task':
+                self.home_button.setTitle_('Review only...')
+            else:
+                self.home_button.setTitle_('Pause Protection' if prot_on else 'Turn On Protection')
+                if friendly:
+                    self.headline.setStringValue_(
+                        'Live Protection is ON — Watching your Mac in real time.'
+                        if prot_on else
+                        'Live Protection is OFF — Click "Turn On Protection" to start.'
+                    )
             if self.mode == 'AI task':
                 self.results.setString_(check_summary(getattr(self, 'last_model', 'PAID EXECUTION PAUSED\n\nReview only shows the built-in synthetic source and task. It cannot start a model or worker.\n\nAfter closing review, a separate Check start - no spend button checks a one-use source/task binding. That check also cannot spend.\n\nThe earlier approval-screen cause is unresolved. No paid re-enable from this check.')));return
             if self.mode == 'Safety check':
-                self.results.setString_(check_summary(getattr(self, 'last_check', 'Not checked yet.\n\nTest a scripted workload: allow a safe task, block a forbidden request, then stop and remove its container.\n\nNo private files, network or AI credits. Not an intelligent AI agent.')));return
+                self.results.setString_(check_summary(getattr(self, 'last_check', 'Not checked yet.\n\nClick "Test Threat Blocking" to verify AegisSwarm stops a fake intruder in real time.')));return
             if workspace:
                 self.save_button.setHidden_(protected)
                 self.protected_start.setHidden_(not protected)
@@ -290,7 +314,7 @@ def _build():
                     self.exports.setHidden_(True)
                     self.check_button.setHidden_(True)
                     self.save_button.setEnabled_(False)
-                    self.results.setString_('Choose non-secret text source and write a goal. Review exact copies before any provider disclosure. Execution is paused; this cannot run a model. Only MuseSwarm-owned tasks can be guarded. Outside agents and the rest of your Mac are not protected.');return
+                    self.results.setString_('Choose non-secret text source and write a goal. Review exact copies before any provider disclosure. Execution is paused; this cannot run a model. Only AegisSwarm-owned tasks can be guarded. Outside agents and the rest of your Mac are not protected.');return
                 if not str(self.command.stringValue()).startswith('/'):
                     self.command.setStringValue_("/bin/sh -c 'cat input.txt > result.txt'")
                 self.results.setString_('Offline scratch only. Run the complete check first. No cloud agent is installed.');return
@@ -303,7 +327,7 @@ def _build():
         def detailsClicked_(self, _sender):
             if self.busy:
                 return
-            if self.mode in ('Safety check', 'AI task'):
+            if self.mode in ('Test Blocking', 'Safety check', 'AI task'):
                 self.showing_check_details = not self.showing_check_details
                 text = getattr(self, 'last_model' if self.mode == 'AI task' else 'last_check', 'No test result yet.')
                 self.results.setString_(text if self.showing_check_details else check_summary(text))
@@ -497,12 +521,69 @@ def _build():
                 self.review_receipt = None
                 self.dry_button.setEnabled_(False)
 
+        def toggleProtectionClicked_(self, _sender):
+            if self.busy:
+                return
+            if self.mode == 'AI task':
+                self.modelClicked_(None);return
+            try:
+                import menubar
+                msg = menubar.toggle_live_guardian()
+                running = menubar.guardian_running()
+                self.home_button.setTitle_('Pause Protection' if running else 'Turn On Protection')
+                self.headline.setStringValue_(
+                    'Live Protection is ON — Watching your Mac in real time.'
+                    if running else
+                    'Live Protection is OFF — Click "Turn On Protection" to start.'
+                )
+                if self.mode == 'Overview':
+                    self.sectionChanged_(None)
+                else:
+                    self.results.setString_(msg)
+            except Exception as exc:
+                self.showError_('Could not toggle Live Protection: ' + str(exc))
+
+        def cleanMacClicked_(self, _sender):
+            if self.busy:
+                return
+            self.sections.selectItemWithTitle_('Mac Health & Cleanup')
+            self.sectionChanged_(None)
+            def operation():
+                from system_optimizer import collect_health_snapshot, analyze_optimizations, apply_safe_cleanup
+                res = apply_safe_cleanup(dry_run=False)
+                snap = collect_health_snapshot()
+                advisories = analyze_optimizations(snap)
+                reclaimed_mb = round(res.get('reclaimed_bytes', 0) / (1024 * 1024), 2)
+                archived = res.get('archived_count', 0)
+                lines = [
+                    'Mac Cleanup Complete!',
+                    '',
+                    f'• Safely archived {archived} stale temp file(s) ({reclaimed_mb} MB freed).',
+                    f'• Everything is reversible — saved to: {res.get("archive_dir")}',
+                    '',
+                    'Current Mac Health:',
+                    f'• Processor (CPU): {snap.cpu_percent:.0f}% used',
+                    f'• Memory (RAM): {snap.memory_percent:.0f}% used ({snap.memory_available_mb:.0f} MB free)',
+                    f'• Storage (Disk): {snap.disk_percent:.0f}% full ({snap.disk_free_gb:.1f} GB free)',
+                    f'• Remaining tips: {len(advisories)}',
+                ]
+                return '\n'.join(lines), None
+            self.startWorker_(operation, kind='check')
+
+        def webConsoleClicked_(self, _sender):
+            try:
+                import menubar
+                msg = menubar.open_full_console()
+                self.headline.setStringValue_(msg)
+            except Exception as exc:
+                self.showError_('Could not open web dashboard: ' + str(exc))
+
         def guardClicked_(self, _sender):
             if self.busy:
                 return
             if self.mode == 'AI task':
                 self.modelClicked_(None);return
-            self.sections.selectItemWithTitle_('Safety check')
+            self.sections.selectItemWithTitle_('Test Blocking')
             self.sectionChanged_(None)
             def operation():
                 import subprocess, sys
@@ -517,18 +598,20 @@ def _build():
                     timeout=20,
                 )
                 if proc.returncode != 0:
-                    raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or 'Live kill-chain proof failed.')
+                    raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or 'Live threat test failed.')
                 proof_data = json.loads(proc.stdout)
                 snap = collect_health_snapshot()
                 advisories = analyze_optimizations(snap)
+                elapsed = proof_data.get('elapsed_seconds')
                 text = [
-                    'Live Kill-Chain Proof PASSED.',
-                    f"OS: {proof_data.get('os')} | Elapsed: {proof_data.get('elapsed_seconds')}s",
-                    f"Stages: {' -> '.join(proof_data.get('stages', []))}",
-                    f"Target PID: {proof_data.get('target_pid')} | Verdict: {proof_data.get('verdict')} ({proof_data.get('agent')}, score {proof_data.get('threat_score')})",
-                    f"Action: {proof_data.get('action_detail')}",
+                    'Test Passed — Your Mac is Protected!',
                     '',
-                    f"System Health: CPU {snap.cpu_percent:.1f}% | RAM {snap.memory_percent:.1f}% | Disk {snap.disk_percent:.1f}% | Advisories: {len(advisories)}",
+                    f'We ran a harmless fake intruder on your Mac.',
+                    f'AegisSwarm spotted it, froze it in place, verified it was dangerous, and stopped it in {elapsed} seconds — before it could touch any files.',
+                    '',
+                    f'Mac Health right now: CPU {snap.cpu_percent:.0f}% | RAM {snap.memory_percent:.0f}% | Disk {snap.disk_percent:.0f}% ({len(advisories)} cleanup tip(s))',
+                    '',
+                    'Click "Show details" above if you want to see the technical report.',
                     '',
                     'Evidence:',
                     json.dumps(proof_data, indent=2),

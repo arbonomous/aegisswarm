@@ -182,7 +182,7 @@ def open_full_console(*, workspace: bool = False) -> str:
 open_protector = open_full_console
 
 
-def show_native_section(section: str = "Status", status_item=None) -> None:
+def show_native_section(section: str = "Overview", status_item=None) -> None:
     """Present only after the NSMenu tracking action has returned."""
     from PyObjCTools.AppHelper import callLater
     print("[AegisSwarm] Queued native section: " + section, flush=True)
@@ -1124,13 +1124,13 @@ def _run_appkit() -> None:
                 pass
 
         def openProtector_(self, _sender) -> None:
-            show_native_section(section="Status", status_item=self.status_item)
+            show_native_section(section="Overview", status_item=self.status_item)
 
         def runProofs_(self, _sender) -> None:
             show_native_section(section="Safety check", status_item=self.status_item)
 
         def openActivity_(self, _sender) -> None:
-            show_native_section(section="Activity and evidence", status_item=self.status_item)
+            show_native_section(section="Activity", status_item=self.status_item)
 
         def openGuardedTask_(self, _sender) -> None:
             open_guarded_task()
