@@ -54,7 +54,7 @@ class ProtectedTaskTests(unittest.TestCase):
 
     def test_exact_native_review_handler_never_launches(self):
         import ast,native_workspace
-        tree=ast.parse(Path(native_workspace.__file__).read_text())
+        tree=ast.parse(Path(native_workspace.__file__).read_text(encoding='utf-8'))
         node=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=='runClicked_')
         scope={'Path':Path};exec(compile(ast.Module(body=[node],type_ignores=[]),'<protected review handler>','exec'),scope)
         with tempfile.TemporaryDirectory() as tmp:

@@ -168,8 +168,12 @@ class HelperProtocolTests(unittest.TestCase):
     def test_accidental_record_edit_refuses_read_transition_and_restart(self):
         import sqlite3
         identity=self.stage()
-        with sqlite3.connect(self.c.path) as db:
-            db.execute("UPDATE journal SET record='changed' WHERE position=1")
+        db=sqlite3.connect(self.c.path)
+        try:
+            with db:
+                db.execute("UPDATE journal SET record='changed' WHERE position=1")
+        finally:
+            db.close()
         with self.assertRaisesRegex(Refused,'integrity'): self.c.history()
         with self.assertRaisesRegex(Refused,'integrity'):
             self.c.receive(self.wire('begin_simulation',identity))
@@ -181,8 +185,12 @@ class HelperProtocolTests(unittest.TestCase):
         import sqlite3
         identity=self.stage()
         self.c.receive(self.wire('begin_simulation',identity))
-        with sqlite3.connect(self.c.path) as db:
-            db.execute('DELETE FROM journal WHERE position=1')
+        db=sqlite3.connect(self.c.path)
+        try:
+            with db:
+                db.execute('DELETE FROM journal WHERE position=1')
+        finally:
+            db.close()
         with self.assertRaisesRegex(Refused,'integrity'): self.c.history()
 
     def test_nonfinite_clock_refused(self):
@@ -193,6 +201,7 @@ class HelperProtocolTests(unittest.TestCase):
             with self.assertRaises(Refused):
                 self.c.receive(self.wire('stage',{'rules':self.rules},expires=1030))
 
+    @unittest.skipIf(__import__('os').name=='nt','POSIX mode bits and unprivileged symlinks')
     def test_private_directory_and_symlink_preconditions(self):
         with self.assertRaises(ValueError): InertController(self.tmp.name,b'short')
         public=Path(self.tmp.name)/'public';public.mkdir(mode=0o755)

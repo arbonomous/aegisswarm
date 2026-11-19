@@ -100,20 +100,31 @@ for line in sys.stdin:
             path = Path(tmp) / "upstream.py"
             path.write_text(server)
             p = subprocess.Popen([sys.executable, str(test_root / "mcp_proxy.py"), "--", sys.executable, str(path)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={**os.environ, "SWARMGUARD_ENFORCE": "1", "SWARMGUARD_MUSE_ON_AMBIGUOUS": "0"})
-            buf = bytearray()
+            import queue
+            import threading
+            out_q: queue.Queue[bytes] = queue.Queue()
+
+            def _pump_stdout() -> None:
+                try:
+                    while True:
+                        line = p.stdout.readline()
+                        out_q.put(line)
+                        if not line:
+                            break
+                except OSError:
+                    out_q.put(b"")
+
+            threading.Thread(target=_pump_stdout, daemon=True).start()
+
             def rpc(i, method, params=None):
                 msg={"jsonrpc":"2.0","id":i,"method":method}
                 if params is not None: msg["params"]=params
                 p.stdin.write(json.dumps(msg).encode()+b"\n"); p.stdin.flush()
-                deadline=time.monotonic()+5
-                while b"\n" not in buf:
-                    with selectors.DefaultSelector() as sel:
-                        sel.register(p.stdout, selectors.EVENT_READ)
-                        self.assertTrue(sel.select(max(0,deadline-time.monotonic())), "stdio timeout")
-                    chunk=os.read(p.stdout.fileno(),65536)
-                    self.assertTrue(chunk, "unexpected EOF")
-                    buf.extend(chunk)
-                body,_,rest=buf.partition(b"\n");buf[:]=rest
+                try:
+                    body = out_q.get(timeout=5)
+                except queue.Empty:
+                    self.fail("stdio timeout")
+                self.assertTrue(body, "unexpected EOF")
                 response=json.loads(body)
                 self.assertEqual(response["id"],i)
                 return response

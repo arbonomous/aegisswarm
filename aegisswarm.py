@@ -99,10 +99,50 @@ def _cmd_proof(_args: argparse.Namespace) -> int:
     return subprocess.call(cmd, cwd=str(ROOT))
 
 
+def _cmd_health(_args: argparse.Namespace) -> int:
+    from system_optimizer import analyze_optimizations, collect_health_snapshot
+
+    snap = collect_health_snapshot()
+    advisories = analyze_optimizations(snap)
+    print(
+        json.dumps(
+            {
+                "health": snap.as_dict(),
+                "optimizations": [a.as_dict() for a in advisories],
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _cmd_optimize(args: argparse.Namespace) -> int:
+    from system_optimizer import (
+        analyze_optimizations,
+        apply_safe_cleanup,
+        collect_health_snapshot,
+    )
+
+    snap = collect_health_snapshot()
+    actions = analyze_optimizations(snap, max_age_hours=args.max_age_hours)
+    results = apply_safe_cleanup(actions, dry_run=not args.apply)
+    print(
+        json.dumps(
+            {
+                "mode": "APPLY (reversible)" if args.apply else "DRY_RUN",
+                "advisories": [a.as_dict() for a in actions],
+                "cleanup_results": results,
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="aegisswarm",
-        description="AegisSwarm — Universal autonomous defense swarm for AI agents.",
+        description="AegisSwarm — Universal autonomous defense & optimization swarm.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -131,6 +171,14 @@ def main(argv: list[str] | None = None) -> int:
 
     p_proof = sub.add_parser("proof", help="Run live safe-range autonomous kill-chain proof.")
     p_proof.set_defaults(func=_cmd_proof)
+
+    p_health = sub.add_parser("health", help="Inspect real-time system health and optimization advisories.")
+    p_health.set_defaults(func=_cmd_health)
+
+    p_opt = sub.add_parser("optimize", help="Scan or apply reversible temp/cache optimizations.")
+    p_opt.add_argument("--apply", action="store_true", help="Archive stale temp files reversibly (default is dry-run).")
+    p_opt.add_argument("--max-age-hours", type=float, default=24.0, help="Minimum file age in hours for temp cleanup.")
+    p_opt.set_defaults(func=_cmd_optimize)
 
     args = parser.parse_args(argv)
     return args.func(args)

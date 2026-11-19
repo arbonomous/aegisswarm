@@ -62,26 +62,40 @@ def selected_files(root: Path, names: list[str]) -> dict[str, bytes]:
     result = {}
     for name in names:
         safe_name(name)
-        # Walk through directory FDs so parent-component symlink swaps cannot escape.
-        directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-        try:
-            parts = PurePosixPath(name).parts
-            for part in parts[:-1]:
-                child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                                dir_fd=directory)
+        if os.name == 'nt':
+            cur = root
+            for part in PurePosixPath(name).parts:
+                cur = cur / part
+                if cur.is_symlink():
+                    raise ValueError('Selected file is unavailable, unsafe or a symlink')
+            if not cur.is_file() or cur.stat().st_size > MAX_FILE:
+                raise ValueError('Select only small regular source files')
+            try:
+                cur.resolve().relative_to(root.resolve())
+                result[name] = cur.read_bytes()[:MAX_FILE + 1]
+            except (OSError, ValueError) as exc:
+                raise ValueError('Selected file is unavailable, unsafe or a symlink') from exc
+        else:
+            # Walk through directory FDs so parent-component symlink swaps cannot escape.
+            directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                parts = PurePosixPath(name).parts
+                for part in parts[:-1]:
+                    child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                                    dir_fd=directory)
+                    os.close(directory)
+                    directory = child
+                fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
+                with os.fdopen(fd, 'rb') as stream:
+                    import stat
+                    metadata = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_FILE:
+                        raise ValueError('Select only small regular source files')
+                    result[name] = stream.read(MAX_FILE + 1)
+            except OSError as exc:
+                raise ValueError('Selected file is unavailable, unsafe or a symlink') from exc
+            finally:
                 os.close(directory)
-                directory = child
-            fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
-            with os.fdopen(fd, 'rb') as stream:
-                import stat
-                metadata = os.fstat(stream.fileno())
-                if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_FILE:
-                    raise ValueError('Select only small regular source files')
-                result[name] = stream.read(MAX_FILE + 1)
-        except OSError as exc:
-            raise ValueError('Selected file is unavailable, unsafe or a symlink') from exc
-        finally:
-            os.close(directory)
     return validate_files(result)
 
 

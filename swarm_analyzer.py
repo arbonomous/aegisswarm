@@ -22,10 +22,13 @@ from typing import Any
 from os_adapter import ProcessSnapshot
 from policy import evaluate_tool_call
 
-# Additional behavioral indicators for live OS processes
+# Additional behavioral indicators for live OS processes (Linux, macOS, Windows)
 _OBFUSCATION_RE = re.compile(
-    r"(base64\s+-d|base64\s+--decode|powershell\s+-enc|frombase64string|"
-    r"curl\s+[^|]+\|\s*(ba)?sh|wget\s+[^|]+\|\s*(ba)?sh|"
+    r"(base64\s+-d|base64\s+--decode|powershell\s+.*-enc|frombase64string|"
+    r"(curl|wget)\s+[^|]+\|\s*(ba)?sh|"
+    r"(invoke-webrequest|iwr|irm)\s+[^|]+\|\s*(iex|invoke-expression)|"
+    r"certutil\s+.*-urlcache|bitsadmin\s+/transfer|mshta\s+https?://|"
+    r"regsvr32\s+.*/i:https?://|osascript\s+-e\s+['\"].*do shell script|"
     r"python[0-9.]*\s+-c\s+['\"].*(urllib|requests|socket|subprocess|pty\.spawn)|"
     r"eval\s*\(\s*base64|nc\s+-e\s+/bin/(ba)?sh)",
     re.I,
@@ -33,7 +36,9 @@ _OBFUSCATION_RE = re.compile(
 
 _EXFIL_URL_RE = re.compile(
     r"(webhook\.site|ngrok\.|pipedream|requestbin|burpcollaborator|"
+    r"trycloudflare\.com|serveo\.net|loca\.lt|"
     r"transfer\.sh|pastebin\.com|discord\.com/api/webhooks|api\.telegram\.org/bot|"
+    r"login-verify|verify-account|oauth-harvest|"
     r"127\.0\.0\.1:8765)",
     re.I,
 )

@@ -56,21 +56,32 @@ def _rpc(
     proc.stdin.write(_encode(req))
     proc.stdin.flush()
 
+    assert proc.stdout is not None
+    import queue
+    import threading
+
+    out_q: queue.Queue[bytes] = queue.Queue()
+
+    def _read_line() -> None:
+        try:
+            out_q.put(proc.stdout.readline())
+        except OSError:
+            out_q.put(b"")
+
     deadline = time.time() + timeout
     while time.time() < deadline:
         msg = _read_one(buf)
         if msg is not None and msg.get("id") == msg_id:
             return msg
-        assert proc.stdout is not None
-        with selectors.DefaultSelector() as selector:
-            selector.register(proc.stdout, selectors.EVENT_READ)
-            if not selector.select(max(0, deadline - time.time())):
-                raise TimeoutError(f"no response for id={msg_id} method={method}")
-        chunk = os.read(proc.stdout.fileno(), 4096)
+        t = threading.Thread(target=_read_line, daemon=True)
+        t.start()
+        try:
+            chunk = out_q.get(timeout=max(0.05, deadline - time.time()))
+        except queue.Empty:
+            raise TimeoutError(f"no response for id={msg_id} method={method}")
         if chunk:
             buf.extend(chunk)
             continue
-        # Non-blocking-ish: small sleep if empty
         if proc.poll() is not None:
             raise RuntimeError(f"proxy exited early rc={proc.returncode}")
         time.sleep(0.02)
