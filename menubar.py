@@ -870,10 +870,7 @@ def _run_rumps() -> None:
                 header,
                 None,
                 rumps.MenuItem("Open AegisSwarm...", callback=self._on_open),
-                rumps.MenuItem("Safety check...", callback=self._on_proofs),
                 rumps.MenuItem("Activity...", callback=self._on_activity),
-                rumps.MenuItem("Workspace...", callback=self._on_workspace),
-                rumps.MenuItem("Guarded task...", callback=self._on_task),
                 rumps.MenuItem("Quit AegisSwarm", callback=self._on_quit),
             ]
             self._apply_snapshot(_status_snapshot())
